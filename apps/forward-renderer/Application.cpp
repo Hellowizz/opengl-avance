@@ -14,7 +14,10 @@ int Application::run()
     {
         const auto seconds = glfwGetTime();
 
-        glClear(GL_COLOR_BUFFER_BIT);
+        //glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glUniformMatrix4fv(uMVPMatrixLoc, 1, GL_FALSE, value_ptr(uMVPMatrix));
 
         // Put here rendering code
         glBindVertexArray(m_VAO);
@@ -64,6 +67,17 @@ Application::Application(int argc, char** argv):
     m_ShadersRootPath { m_AppPath.parent_path() / "shaders" }
 
 {
+    glEnable(GL_DEPTH_TEST);
+
+    glm::mat4 ProjMatrix = perspective(radians(70.f), m_nWindowWidth/float(m_nWindowHeight), 0.1f, 100.f);
+    glm::mat4 ModelMatrix(1);
+    glm::mat3 posCamera = vec3(1,0,1);
+    glm::mat3 cible = vec3(0, 0, 0);
+    glm::mat4 ViewMatrix(glm::lookAt(posCamera, cible, vec3(0,1,0)));
+    glm::mat4 MVMatrix(ViewMatrix * ModelMatrix);
+    glm::mat4 MVPMatrix(ProjMatrix * MVMatrix);
+    glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix)); 
+
     glmlv::SimpleGeometry cube = glmlv::makeCube();
     m_cubeIndexBuffer = cube.indexBuffer.size();
 
@@ -74,8 +88,12 @@ Application::Application(int argc, char** argv):
 
     glGenBuffers(1, &m_IBO);  // gen ibo
     glBindBuffer(GL_ARRAY_BUFFER, m_IBO);  // biding ibo
-    glBufferStorage(GL_ARRAY_BUFFER, m_cubeIndexBuffer * sizeof(cube.indexBuffer.data()[0]), cube.indexBuffer.data(), 0);
+    glBufferStorage(GL_ARRAY_BUFFER, m_cubeIndexBufm_programfer * sizeof(cube.indexBuffer.data()[0]), cube.indexBuffer.data(), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);  // debind ibo
+
+    // Here we load and compile shaders from the library
+    m_program = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "forward.vs.glsl", m_ShadersRootPath / m_AppName / "forward.fs.glsl" });
+    GLint uMVPMatrixLoc = glGetUniformLocation(m_program.glId() , "uMVPMatrixLoc");
 
     const GLint positionAttrLocation = 0;
     const GLint normalAttrLocation = 1;
@@ -100,15 +118,9 @@ Application::Application(int argc, char** argv):
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IBO);
 
     glBindVertexArray(0);
-
-    // Here we load and compile shaders from the library
-    /*m_program = glmlv::compileProgram({ m_ShadersRootPath / "glmlv" / "position2_color3.vs.glsl", m_ShadersRootPath / "glmlv" / "color3.fs.glsl" });
-
-    // Here we use glGetAttribLocation(program, attribname) to obtain attrib locations; We could also directly use locations if they are set in the vertex shader (cf. triangle app)
-    const GLint positionAttrLocation = glGetAttribLocation(m_program.glId(), "aPosition");
-    const GLint colorAttrLocation = glGetAttribLocation(m_program.glId(), "aColor");*/
-
+    
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     ImGui::GetIO().IniFilename = m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows positions in this file
+    m_program.use();
 }

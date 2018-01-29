@@ -25,4 +25,5 @@ private:
     GLuint m_VAO = 0;
 
     u_int m_cubeIndexBuffer;
+    glmlv::GLProgram m_program;
 };
