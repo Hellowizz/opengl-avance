@@ -1,0 +1,417 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"cube",
+				"cubeVertices"
+			],
+			[
+				"getL",
+				"getLightTime"
+			],
+			[
+				"event",
+				"eventVisitor"
+			],
+			[
+				"even",
+				"eventNodeVisitor"
+			],
+			[
+				"app",
+				"apply"
+			],
+			[
+				"Ma",
+				"matrix"
+			],
+			[
+				"map",
+				"mapBounds"
+			],
+			[
+				"aNi",
+				"AnimCallback"
+			],
+			[
+				"anim",
+				"AnimCallback"
+			],
+			[
+				"Matrix",
+				"MatrixTransform"
+			],
+			[
+				"Node",
+				"NodeCallback"
+			],
+			[
+				"Boid",
+				"BoidsUtilSKD"
+			],
+			[
+				"BoidUtil",
+				"BoidsUtilSKD"
+			],
+			[
+				"Bois",
+				"BoidSimSKD"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"contents": "#include \"Application.hpp\"\n\n#include <iostream>\n\n#include <imgui.h>\n#include <glmlv/imgui_impl_glfw_gl3.hpp>\n\nint Application::run()\n{\n    float clearColor[3] = { 0, 0, 0 };\n    // Loop until the user closes the window\n    for (auto iterationCount = 0u; !m_GLFWHandle.shouldClose(); ++iterationCount)\n    {\n        const auto seconds = glfwGetTime();\n\n        glClear(GL_COLOR_BUFFER_BIT);\n\n        // Put here rendering code\n        glBindVertexArray(m_VAO);\n\n        // Drawing code\n        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr); // We draw 2 triangles for a quad, so 3 * 2 = 6 indices must be used\n\n\n        //void glGenBuffers(GLsizei n​, GLuint * buffers​);\n        //void glGenVertexArrays(GLsizei n​, GLuint *arrays​);\n\n        // GUI code:\n        ImGui_ImplGlfwGL3_NewFrame();\n\n        {\n            ImGui::Begin(\"GUI\");\n            ImGui::Text(\"Application average %.3f ms/frame (%.1f FPS)\", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);\n            ImGui::ColorEditMode(ImGuiColorEditMode_RGB);\n            if (ImGui::ColorEdit3(\"clearColor\", clearColor)) {\n                glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.f);\n            }\n            ImGui::End();\n        }\n\n        const auto viewportSize = m_GLFWHandle.framebufferSize();\n        glViewport(0, 0, viewportSize.x, viewportSize.y);\n        ImGui::Render();\n\n        /* Poll for and process events */\n        glfwPollEvents();\n\n        /* Swap front and back buffers*/\n        m_GLFWHandle.swapBuffers();\n\n        auto ellapsedTime = glfwGetTime() - seconds;\n        auto guiHasFocus = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;\n        if (!guiHasFocus) {\n            //viewController.update(float(ellapsedTime))\n        }\n    }\n\n    return 0;\n}\n\nApplication::Application(int argc, char** argv):\n    m_AppPath { glmlv::fs::path{ argv[0] } },\n    m_AppName { m_AppPath.stem().string() },\n    m_ImGuiIniFilename { m_AppName + \".imgui.ini\" },\n    m_ShadersRootPath { m_AppPath.parent_path() / \"shaders\" }\n\n{\n    glGenBuffers(1, &m_VBO);  // gen vbo\n    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);  // biding vbo\n\n    Vertex cubeVertices[] = {\n        Vertex { glm::vec4( glm::vec3(-0.5f, -0.5f, 0.f), 1.0f) },\n        Vertex { glm::vec4( glm::vec3(0.5f, -0.5f, 1.f), 1.0f) },\n        Vertex { glm::vec4( glm::vec3(0.5f, 0.5f, 1.f), 0.f) },\n        Vertex { glm::vec4( glm::vec3(-0.5f, 0.5f, 0.f), 0.f) }\n    };\n\n    glBufferStorage(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, 0))\n    glBindBuffer(GL_ARRAY_BUFFER, 0);\n\n    glGenBuffers(1, &m_IBO);\n\n    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IBO);\n\n    GLuint cubeIndices[] = {\n        0, 1, 2, // First triangle\n        0, 2, 3 // Second triangle\n    };\n\n    glBufferStorage(GL_ARRAY_BUFFER, sizeof(cubeIndices), cubeIndices, 0);\n\n    glBindBuffer(GL_ARRAY_BUFFER, 0);\n\n    glGenVertexArrays(1, &m_VAO);  // gen vao\n\n      // Here we load and compile shaders from the library\n    m_program = glmlv::compileProgram({ m_ShadersRootPath / \"glmlv\" / \"position2_color3.vs.glsl\", m_ShadersRootPath / \"glmlv\" / \"color3.fs.glsl\" });\n\n     // Here we use glGetAttribLocation(program, attribname) to obtain attrib locations; We could also directly use locations if they are set in the vertex shader (cf. triangle app)\n    const GLint positionAttrLocation = glGetAttribLocation(m_program.glId(), \"aPosition\");\n    const GLint colorAttrLocation = glGetAttribLocation(m_program.glId(), \"aColor\");\n\n    glBindVertexArray(m_quadVAO);  // biding vao\n    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);  // biding vbo\n\n    glEnableVertexAttribArray(positionAttrLocation);\n    glVertexAttribPointer(positionAttrLocation, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*) offsetof(Vertex, position));\n\n    glEnableVertexAttribArray(colorAttrLocation);\n    glVertexAttribPointer(colorAttrLocation, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*) offsetof(Vertex, color));\n\n    glBindBuffer(GL_ARRAY_BUFFER, 0);\n\n    glBindVertexArray(0);\n\n    ImGui::GetIO().IniFilename = m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows positions in this file\n}",
+			"file": "Application.cpp",
+			"file_size": 3028,
+			"file_write_time": 131616907528896025,
+			"settings":
+			{
+				"buffer_size": 4156,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "Application.hpp",
+			"settings":
+			{
+				"buffer_size": 716,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/home/6im3/hrouss01/Documents/OpenGl/opengl-avance/apps/quad/Application.cpp",
+			"settings":
+			{
+				"buffer_size": 4396,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/home/6im3/hrouss01/Documents/OpenGl/opengl-avance/apps/quad/Application.hpp",
+			"settings":
+			{
+				"buffer_size": 778,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/home/6im3/hrouss01/Documents/OpenGl/opengl-avance/apps/forward-renderer/main.cpp",
+		"/home/6im3/hrouss01/Documents/OpenGl/opengl-avance/apps/quad/main.cpp",
+		"/home/6im3/hrouss01/Documents/cpcpu/cube.cu",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td3/Src/App.cpp",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td3/Src/Game.cpp",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td3/Src/AppOptions.cpp",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td3/Src/Turret.cpp",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td3/Src/Main.cpp",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td1/Src/Boid.cpp",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td1/Plugins/Boids/Boids.cpp",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td1/Plugins/Boids/Boids.h",
+		"/home/6im3/hrouss01/Documents/Unity Advanced programmation/td1/Src/Boid.h"
+	],
+	"find":
+	{
+		"height": 34.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"GL_ARRAY_BUFFER",
+			"ImGui",
+			"m_quadVAO",
+			"eventNodeVisitor",
+			"eventvisi",
+			"TraversalMode tm=TRAVERSE_NONE",
+			"load",
+			"eventNodeVisitor",
+			"load",
+			"rootnode",
+			"game",
+			"delete",
+			"cloud",
+			"setUpda",
+			"makeC",
+			"td3",
+			"makeC",
+			"td3"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "Application.cpp",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4156,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2514,
+								2514
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 900.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "Application.hpp",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 716,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								705,
+								705
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 2,
+					"file": "/home/6im3/hrouss01/Documents/OpenGl/opengl-avance/apps/quad/Application.cpp",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4396,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3514,
+								3514
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 1080.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "/home/6im3/hrouss01/Documents/OpenGl/opengl-avance/apps/quad/Application.hpp",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 778,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								12,
+								12
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 23.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			],
+			[
+				1,
+				0,
+				2,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			0.5,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "Application.sublime-project",
+	"replace":
+	{
+		"height": 42.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 150.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
