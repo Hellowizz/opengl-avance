@@ -24,6 +24,10 @@ private:
     GLuint m_IBO = 0;
     GLuint m_VAO = 0;
 
+    GLint uMVPMatrixLoc = -1;
+    GLint MVMatrixLoc = -1;
+    GLint NormalMatrixLoc = -1;
+
     u_int m_cubeIndexBuffer;
     glmlv::GLProgram m_program;
 };

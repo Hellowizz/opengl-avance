@@ -6,6 +6,8 @@
 #include <glmlv/imgui_impl_glfw_gl3.hpp>
 #include <glmlv/simple_geometry.hpp>
 
+#include <glm/gtc/type_ptr.hpp>
+
 int Application::run()
 {
     float clearColor[3] = { 0, 0, 0 };
@@ -14,10 +16,21 @@ int Application::run()
     {
         const auto seconds = glfwGetTime();
 
+        glm::mat4 ProjMatrix = glm::perspective(glm::radians(70.f), m_nWindowWidth/float(m_nWindowHeight), 0.1f, 100.f);
+        glm::mat4 ModelMatrix(1);
+        glm::vec3 posCamera = glm::vec3(5,5,5);
+        glm::vec3 cible = glm::vec3(0, 0, 0);
+        glm::mat4 ViewMatrix(glm::lookAt(posCamera, cible, glm::vec3(0,1,0)));
+        glm::mat4 MVMatrix(ViewMatrix * ModelMatrix);
+        glm::mat4 uMVPMatrix(ProjMatrix * MVMatrix);
+        glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix)); 
+
         //glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUniformMatrix4fv(uMVPMatrixLoc, 1, GL_FALSE, value_ptr(uMVPMatrix));
+        glUniformMatrix4fv(uMVPMatrixLoc, 1, GL_FALSE, glm::value_ptr(uMVPMatrix));
+        glUniformMatrix4fv(MVMatrixLoc, 1, GL_FALSE, glm::value_ptr(MVMatrix));
+        glUniformMatrix4fv(NormalMatrixLoc, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
 
         // Put here rendering code
         glBindVertexArray(m_VAO);
@@ -69,15 +82,6 @@ Application::Application(int argc, char** argv):
 {
     glEnable(GL_DEPTH_TEST);
 
-    glm::mat4 ProjMatrix = perspective(radians(70.f), m_nWindowWidth/float(m_nWindowHeight), 0.1f, 100.f);
-    glm::mat4 ModelMatrix(1);
-    glm::mat3 posCamera = vec3(1,0,1);
-    glm::mat3 cible = vec3(0, 0, 0);
-    glm::mat4 ViewMatrix(glm::lookAt(posCamera, cible, vec3(0,1,0)));
-    glm::mat4 MVMatrix(ViewMatrix * ModelMatrix);
-    glm::mat4 MVPMatrix(ProjMatrix * MVMatrix);
-    glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix)); 
-
     glmlv::SimpleGeometry cube = glmlv::makeCube();
     m_cubeIndexBuffer = cube.indexBuffer.size();
 
@@ -88,12 +92,15 @@ Application::Application(int argc, char** argv):
 
     glGenBuffers(1, &m_IBO);  // gen ibo
     glBindBuffer(GL_ARRAY_BUFFER, m_IBO);  // biding ibo
-    glBufferStorage(GL_ARRAY_BUFFER, m_cubeIndexBufm_programfer * sizeof(cube.indexBuffer.data()[0]), cube.indexBuffer.data(), 0);
+    glBufferStorage(GL_ARRAY_BUFFER, cube.indexBuffer.size() * sizeof(cube.indexBuffer.data()[0]), cube.indexBuffer.data(), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);  // debind ibo
 
     // Here we load and compile shaders from the library
     m_program = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "forward.vs.glsl", m_ShadersRootPath / m_AppName / "forward.fs.glsl" });
-    GLint uMVPMatrixLoc = glGetUniformLocation(m_program.glId() , "uMVPMatrixLoc");
+
+    uMVPMatrixLoc = glGetUniformLocation(m_program.glId() , "uModelViewProjMatrix");
+    MVMatrixLoc = glGetUniformLocation(m_program.glId() , "uModelViewMatrix");
+    NormalMatrixLoc = glGetUniformLocation(m_program.glId() , "uNormalMatrix");
 
     const GLint positionAttrLocation = 0;
     const GLint normalAttrLocation = 1;
