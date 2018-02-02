@@ -3,6 +3,7 @@
 #include <glmlv/filesystem.hpp>
 #include <glmlv/GLFWHandle.hpp>
 #include <glmlv/GLProgram.hpp>
+#include <glmlv/ViewController.hpp>
 
 class Application
 {
@@ -31,4 +32,5 @@ private:
     u_int m_cubeIndexBuffer;
     u_int m_sphereIndexBuffer;
     glmlv::GLProgram m_program;
+    glmlv::ViewController m_viewController = glmlv::ViewController(m_GLFWHandle.window());
 };

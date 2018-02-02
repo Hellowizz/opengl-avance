@@ -20,12 +20,10 @@ int Application::run()
         glm::mat4 ModelMatrix(1);
         glm::vec3 posCamera = glm::vec3(5,5,5);
         glm::vec3 cible = glm::vec3(0, 0, 0);
-        glm::mat4 ViewMatrix(glm::lookAt(posCamera, cible, glm::vec3(0,1,0)));
+        glm::mat4 ViewMatrix = m_viewController.getViewMatrix();
         glm::mat4 MVMatrix(ViewMatrix * ModelMatrix);
         glm::mat4 uMVPMatrix(ProjMatrix * MVMatrix);
         glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix));
-
-        //viewController view = viewController(nullptr);
 
         //glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -69,7 +67,7 @@ int Application::run()
         auto ellapsedTime = glfwGetTime() - seconds;
         auto guiHasFocus = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
         if (!guiHasFocus) {
-            //viewController.update(float(ellapsedTime))
+            m_viewController.update(float(ellapsedTime));
         }
     }
 
