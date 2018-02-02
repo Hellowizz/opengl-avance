@@ -28,9 +28,45 @@ int Application::run()
         //glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        m_program.use();
+
         glUniformMatrix4fv(uMVPMatrixLoc, 1, GL_FALSE, glm::value_ptr(uMVPMatrix));
         glUniformMatrix4fv(MVMatrixLoc, 1, GL_FALSE, glm::value_ptr(MVMatrix));
         glUniformMatrix4fv(NormalMatrixLoc, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
+
+        glUniform3fv(uKdLoc, 1, glm::value_ptr(glm::vec3(0,1,0.4)));
+        glUniform3fv(uKsLoc, 1, glm::value_ptr(glm::vec3(0,1,0.4)));
+        glUniform1f(uShininessLoc, 30.f);
+        glUniform3fv(uLightDir_vsLoc, 1, glm::value_ptr(ViewMatrix * glm::vec4(1, 1, 1, 0)));
+        glUniform3fv(uLightIntensityLoc, 1, glm::value_ptr(glm::vec3(1,1,1)));
+
+            // TEXTURES //
+
+        glGenTextures(2, m_textures);
+
+        // Texture poil
+        glmlv::Image2DRGBA poils;
+        poils.readImage(m_AppPath + "img/poilRose.jpg");
+
+        glBindTexture(GL_TEXTURE_2D, m_textures[0]);
+        glTexImage(GL_TEXTURE_2D, 0, GL_RGA, poils.width(), poils.height(), 0, GL_RGBA, GL_FLOAT, poils.data());
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        // Texture bleue
+        glmlv::Image2DRGBA bleue;
+        bleue.readImage(m_AppPath + "img/texturebleue.jpg");
+
+        glBindTexture(GL_TEXTURE_2D, m_textures[0]);
+        glTexImage(GL_TEXTURE_2D, 0, GL_RGA, bleue.width(), bleue.height(), 0, GL_RGBA, GL_FLOAT, bleue.data());
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         // Put here rendering code
         glBindVertexArray(m_VAO);
@@ -102,11 +138,24 @@ Application::Application(int argc, char** argv):
     glBindBuffer(GL_ARRAY_BUFFER, 0);  // debind ibo
 
     // Here we load and compile shaders from the library
-    m_program = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "forward.vs.glsl", m_ShadersRootPath / m_AppName / "forward.fs.glsl" });
-
+    m_program = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "forward.vs.glsl", m_ShadersRootPath / m_AppName / "directionallight.fs.glsl" });
+    
     uMVPMatrixLoc = glGetUniformLocation(m_program.glId() , "uModelViewProjMatrix");
     MVMatrixLoc = glGetUniformLocation(m_program.glId() , "uModelViewMatrix");
     NormalMatrixLoc = glGetUniformLocation(m_program.glId() , "uNormalMatrix");
+#define FOO(u) if(u == -1) std::cerr << #u << " is -1! (is it used?)" << std::endl;
+    FOO(uMVPMatrixLoc);
+    FOO(MVMatrixLoc);
+    FOO(NormalMatrixLoc);
+#undef FOO
+
+    uKdLoc = glGetUniformLocation(m_program.glId(), "uKd");
+    uKsLoc = glGetUniformLocation(m_program.glId(), "uKs");
+    uShininessLoc = glGetUniformLocation(m_program.glId(), "uShininess");
+    uLightDir_vsLoc = glGetUniformLocation(m_program.glId(), "uLightDir_vs");
+    uLightIntensityLoc = glGetUniformLocation(m_program.glId(), "uLightIntensity");
+
+    uTextureLoc = glGenUniformLocation(m_program.getGLId(), "uKdSampler");
 
     const GLint positionAttrLocation = 0;
     const GLint normalAttrLocation = 1;
@@ -134,6 +183,10 @@ Application::Application(int argc, char** argv):
     
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+        // TEXTURES //
+    glActiveTeture(GL_TEXTURE0 + 4);
+    glUniformli()
+
     ImGui::GetIO().IniFilename = m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows positions in this file
-    m_program.use();
+    
 }

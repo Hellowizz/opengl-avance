@@ -25,9 +25,16 @@ private:
     GLuint m_IBO = 0;
     GLuint m_VAO = 0;
 
+    GLuint textures[2];
+
     GLint uMVPMatrixLoc = -1;
     GLint MVMatrixLoc = -1;
     GLint NormalMatrixLoc = -1;
+    GLint uKdLoc = -1;
+    GLint uKsLoc = -1;
+    GLint uShininessLoc = -1;
+    GLint uLightDir_vsLoc = -1;
+    GLint uLightIntensityLoc = -1;
 
     u_int m_cubeIndexBuffer;
     u_int m_sphereIndexBuffer;
