@@ -29,5 +29,6 @@ private:
     GLint NormalMatrixLoc = -1;
 
     u_int m_cubeIndexBuffer;
+    u_int m_sphereIndexBuffer;
     glmlv::GLProgram m_program;
 };

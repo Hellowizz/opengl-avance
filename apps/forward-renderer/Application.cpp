@@ -23,7 +23,9 @@ int Application::run()
         glm::mat4 ViewMatrix(glm::lookAt(posCamera, cible, glm::vec3(0,1,0)));
         glm::mat4 MVMatrix(ViewMatrix * ModelMatrix);
         glm::mat4 uMVPMatrix(ProjMatrix * MVMatrix);
-        glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix)); 
+        glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix));
+
+        //viewController view = viewController(nullptr);
 
         //glClear(GL_COLOR_BUFFER_BIT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -36,7 +38,8 @@ int Application::run()
         glBindVertexArray(m_VAO);
 
         // Drawing code
-        glDrawElements(GL_TRIANGLES, m_cubeIndexBuffer, GL_UNSIGNED_INT, nullptr);
+        //glDrawElements(GL_TRIANGLES, m_cubeIndexBuffer, GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, m_sphereIndexBuffer, GL_UNSIGNED_INT, nullptr);
 
         glBindVertexArray(0);
 
@@ -83,16 +86,21 @@ Application::Application(int argc, char** argv):
     glEnable(GL_DEPTH_TEST);
 
     glmlv::SimpleGeometry cube = glmlv::makeCube();
+    glmlv::SimpleGeometry sphere = glmlv::makeSphere(100);
+
     m_cubeIndexBuffer = cube.indexBuffer.size();
+    m_sphereIndexBuffer = sphere.indexBuffer.size();
 
     glGenBuffers(1, &m_VBO);  // gen vbo
     glBindBuffer(GL_ARRAY_BUFFER, m_VBO);  // biding vbo
-    glBufferStorage(GL_ARRAY_BUFFER, cube.vertexBuffer.size() * sizeof(cube.vertexBuffer[0]), cube.vertexBuffer.data(), 0);
+    //glBufferStorage(GL_ARRAY_BUFFER, cube.vertexBuffer.size() * sizeof(cube.vertexBuffer[0]), cube.vertexBuffer.data(), 0);
+    glBufferStorage(GL_ARRAY_BUFFER, sphere.vertexBuffer.size() * sizeof(sphere.vertexBuffer[0]), sphere.vertexBuffer.data(), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);  // debind vbo
 
     glGenBuffers(1, &m_IBO);  // gen ibo
     glBindBuffer(GL_ARRAY_BUFFER, m_IBO);  // biding ibo
-    glBufferStorage(GL_ARRAY_BUFFER, cube.indexBuffer.size() * sizeof(cube.indexBuffer.data()[0]), cube.indexBuffer.data(), 0);
+    //glBufferStorage(GL_ARRAY_BUFFER, cube.indexBuffer.size() * sizeof(cube.indexBuffer.data()[0]), cube.indexBuffer.data(), 0);
+    glBufferStorage(GL_ARRAY_BUFFER, sphere.indexBuffer.size() * sizeof(sphere.indexBuffer.data()[0]), sphere.indexBuffer.data(), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);  // debind ibo
 
     // Here we load and compile shaders from the library
