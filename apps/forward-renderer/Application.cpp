@@ -5,12 +5,16 @@
 #include <imgui.h>
 #include <glmlv/imgui_impl_glfw_gl3.hpp>
 #include <glmlv/simple_geometry.hpp>
+#include <glmlv/Image2DRGBA.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 
 int Application::run()
 {
     float clearColor[3] = { 0, 0, 0 };
+
+
+
     // Loop until the user closes the window
     for (auto iterationCount = 0u; !m_GLFWHandle.shouldClose(); ++iterationCount)
     {
@@ -34,39 +38,15 @@ int Application::run()
         glUniformMatrix4fv(MVMatrixLoc, 1, GL_FALSE, glm::value_ptr(MVMatrix));
         glUniformMatrix4fv(NormalMatrixLoc, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
 
-        glUniform3fv(uKdLoc, 1, glm::value_ptr(glm::vec3(0,1,0.4)));
-        glUniform3fv(uKsLoc, 1, glm::value_ptr(glm::vec3(0,1,0.4)));
+        glUniform3fv(uKdLoc, 1, glm::value_ptr(glm::vec3(0.7,0.4,0.4)));
+        glUniform3fv(uKsLoc, 1, glm::value_ptr(glm::vec3(0.7,0.4,0.4)));
         glUniform1f(uShininessLoc, 30.f);
         glUniform3fv(uLightDir_vsLoc, 1, glm::value_ptr(ViewMatrix * glm::vec4(1, 1, 1, 0)));
         glUniform3fv(uLightIntensityLoc, 1, glm::value_ptr(glm::vec3(1,1,1)));
 
-            // TEXTURES //
-
-        glGenTextures(2, m_textures);
-
-        // Texture poil
-        glmlv::Image2DRGBA poils;
-        poils.readImage(m_AppPath + "img/poilRose.jpg");
-
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_textures[0]);
-        glTexImage(GL_TEXTURE_2D, 0, GL_RGA, poils.width(), poils.height(), 0, GL_RGBA, GL_FLOAT, poils.data());
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        // Texture bleue
-        glmlv::Image2DRGBA bleue;
-        bleue.readImage(m_AppPath + "img/texturebleue.jpg");
-
-        glBindTexture(GL_TEXTURE_2D, m_textures[0]);
-        glTexImage(GL_TEXTURE_2D, 0, GL_RGA, bleue.width(), bleue.height(), 0, GL_RGBA, GL_FLOAT, bleue.data());
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glUniform1i(uTextureLoc, 0);
 
         // Put here rendering code
         glBindVertexArray(m_VAO);
@@ -155,7 +135,7 @@ Application::Application(int argc, char** argv):
     uLightDir_vsLoc = glGetUniformLocation(m_program.glId(), "uLightDir_vs");
     uLightIntensityLoc = glGetUniformLocation(m_program.glId(), "uLightIntensity");
 
-    uTextureLoc = glGenUniformLocation(m_program.getGLId(), "uKdSampler");
+    uTextureLoc = glGetUniformLocation(m_program.glId(), "uKdSampler");
 
     const GLint positionAttrLocation = 0;
     const GLint normalAttrLocation = 1;
@@ -176,17 +156,36 @@ Application::Application(int argc, char** argv):
     glVertexAttribPointer(texCoordsAttrLocation, 2, GL_FLOAT, GL_FALSE, sizeof(glmlv::Vertex3f3f2f), (const GLvoid*) offsetof(glmlv::Vertex3f3f2f, texCoords));
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IBO);
-
     glBindVertexArray(0);
-    
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         // TEXTURES //
-    glActiveTeture(GL_TEXTURE0 + 4);
-    glUniformli()
+    glGenTextures(2, m_textures);
+
+        // Texture poil
+    glmlv::Image2DRGBA poils = glmlv::readImage(m_AppPath.parent_path() / "assets" / m_AppName /"img" / "poilRose.jpg");
+
+    glBindTexture(GL_TEXTURE_2D, m_textures[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, poils.width(), poils.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, poils.data());
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+        // Texture bleue
+    glmlv::Image2DRGBA bleue = glmlv::readImage(m_AppPath.parent_path() / "assets" / m_AppName / "img" / "texturebleue.jpg");
+
+
+    glBindTexture(GL_TEXTURE_2D, m_textures[1]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, bleue.width(), bleue.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, bleue.data());
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     ImGui::GetIO().IniFilename = m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows positions in this file
-    
+ 
 }

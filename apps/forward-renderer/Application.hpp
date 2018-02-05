@@ -21,11 +21,11 @@ private:
     const std::string m_ImGuiIniFilename;
     const glmlv::fs::path m_ShadersRootPath;
 
+    GLuint m_textures[2];
+
     GLuint m_VBO = 0;
     GLuint m_IBO = 0;
     GLuint m_VAO = 0;
-
-    GLuint textures[2];
 
     GLint uMVPMatrixLoc = -1;
     GLint MVMatrixLoc = -1;
@@ -35,9 +35,10 @@ private:
     GLint uShininessLoc = -1;
     GLint uLightDir_vsLoc = -1;
     GLint uLightIntensityLoc = -1;
+    GLint uTextureLoc = -1;
 
-    u_int m_cubeIndexBuffer;
-    u_int m_sphereIndexBuffer;
+    GLuint m_cubeIndexBuffer;
+    GLuint m_sphereIndexBuffer;
     glmlv::GLProgram m_program;
     glmlv::ViewController m_viewController = glmlv::ViewController(m_GLFWHandle.window());
 };

@@ -4,7 +4,7 @@ in vec3 vViewSpacePosition;
 in vec3 vViewSpaceNormal;
 in vec2 vTexCoords;
 
-uniform sampler2D uKdSampler
+uniform sampler2D uKdSampler;
 
 uniform vec3 uKd; // couleur diffuse 
 uniform vec3 uKs; // couleur speculaire
@@ -24,7 +24,7 @@ vec3 blinnPhong(){
 }
 
 void main() {
-	gvec4 poil = texture(uKdSampler, vTexCoords);
+	vec4 poil = texture(uKdSampler, vTexCoords);
 
 	fFragColor = poil.xyz * uKd * blinnPhong();	
 }
