@@ -23,7 +23,7 @@ private:
     const glmlv::fs::path m_ShadersRootPath;
     const glmlv::fs::path m_AssetsRootPath;
 
-    GLuint m_textures[2];
+    std::vector<GLuint> m_textures;
 
     GLuint m_VBO = 0;
     GLuint m_IBO = 0;
@@ -38,6 +38,10 @@ private:
     GLint uLightDir_vsLoc = -1;
     GLint uLightIntensityLoc = -1;
     GLint uTextureLoc = -1;
+    GLint m_uSpecularLoc = -1;
+    GLint m_uAmbiantLoc = -1;
+    GLint m_uDiffuseLoc = -1;
+
 
     GLuint m_cubeIndexBuffer;
     GLuint m_sphereIndexBuffer;
@@ -45,5 +49,4 @@ private:
     glmlv::ViewController m_viewController = glmlv::ViewController(m_GLFWHandle.window());
 
     glmlv::ObjData m_crytekSponzaObj;
-    
 };

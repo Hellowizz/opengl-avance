@@ -13,15 +13,16 @@ int Application::run()
 {
     float clearColor[3] = { 0, 0, 0 };
 
-
-
     // Loop until the user closes the window
     for (auto iterationCount = 0u; !m_GLFWHandle.shouldClose(); ++iterationCount)
     {
         const auto seconds = glfwGetTime();
 
-        // Camera
-        glm::mat4 ProjMatrix = glm::perspective(glm::radians(70.f), m_nWindowWidth/float(m_nWindowHeight), 0.1f, 100.f);
+        // vitesse de la camera
+        const auto m_sceneSize = glm::length(m_crytekSponzaObj.bboxMax - m_crytekSponzaObj.bboxMin);
+        m_viewController.setSpeed(m_sceneSize * 0.1f);
+        glm::mat4 ProjMatrix = glm::perspective(70.f, m_nWindowWidth/float(m_nWindowHeight), 0.01f * m_sceneSize, m_sceneSize); // near = 1% de la taille de la scene, far = 100%
+        //glm::perspective(glm::radians(70.f), m_nWindowWidth/float(m_nWindowHeight), 0.1f, 100.f);
         glm::mat4 ModelMatrix(1);
         glm::vec3 posCamera = glm::vec3(5,5,5);
         glm::vec3 cible = glm::vec3(0, 0, 0);
@@ -45,10 +46,6 @@ int Application::run()
         glUniform3fv(uLightDir_vsLoc, 1, glm::value_ptr(ViewMatrix * glm::vec4(1, 1, 1, 0)));
         glUniform3fv(uLightIntensityLoc, 1, glm::value_ptr(glm::vec3(1,1,1)));
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_textures[0]);
-        glUniform1i(uTextureLoc, 0);
-
         // Put here rendering code
         glBindVertexArray(m_VAO);
 
@@ -57,8 +54,35 @@ int Application::run()
         //glDrawElements(GL_TRIANGLES, m_sphereIndexBuffer, GL_UNSIGNED_INT, nullptr);
         glBindVertexArray(m_VAO);
         auto indexOffset = 0;
-        for (const auto indexCount: m_crytekSponzaObj.indexCountPerShape)
-        {
+        for (int i=0; i<m_crytekSponzaObj.shapeCount; i++) {
+            auto indexCount = m_crytekSponzaObj.indexCountPerShape[i];
+
+            auto idMaterial = m_crytekSponzaObj.materialIDPerShape[i];
+            const auto &material = m_crytekSponzaObj.materials[idMaterial]; 
+
+            glActiveTexture(GL_TEXTURE0);
+            if(material.KaTextureId != -1)
+                glBindTexture(GL_TEXTURE_2D, m_textures[material.KaTextureId]);
+            else
+                glBindTexture(GL_TEXTURE_2D, 0);
+
+            glActiveTexture(GL_TEXTURE1);
+            if(material.KsTextureId != -1)
+                glBindTexture(GL_TEXTURE_2D, m_textures[material.KsTextureId]);
+            else
+                glBindTexture(GL_TEXTURE_2D, 0);
+
+            glActiveTexture(GL_TEXTURE2);
+            if(material.KdTextureId != -1)
+                glBindTexture(GL_TEXTURE_2D, m_textures[material.KdTextureId]);
+            else
+                glBindTexture(GL_TEXTURE_2D, 0);
+
+                // correspond aux unité de textures (GL_TEXTURE0)
+            glUniform1i(m_uSpecularLoc, 1);
+            glUniform1i(m_uAmbiantLoc, 0);
+            glUniform1i(m_uDiffuseLoc, 2);
+
             glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, (const GLvoid*) (indexOffset * sizeof(GLuint)));
             indexOffset += indexCount;
         }
@@ -103,7 +127,7 @@ Application::Application(int argc, char** argv):
     m_AppName { m_AppPath.stem().string() },
     m_ImGuiIniFilename { m_AppName + ".imgui.ini" },
     m_ShadersRootPath { m_AppPath.parent_path() / "shaders" },
-    m_AssetsRootPath { m_AppPath.parent_path() / "lib" / "assets" / "models" }
+    m_AssetsRootPath { m_AppPath.parent_path() / "assets" }
 
 {
     glEnable(GL_DEPTH_TEST);
@@ -112,7 +136,7 @@ Application::Application(int argc, char** argv):
     glmlv::SimpleGeometry sphere = glmlv::makeSphere(100);*/
 
     // MODELE OBJ
-    glmlv::loadObj(m_AssetsRootPath / "crytek-sponza" / "textures" , m_crytekSponzaObj);
+    glmlv::loadObj(m_AssetsRootPath / "glmlv" / "models" / "crytek-sponza" / "sponza.obj" , m_crytekSponzaObj);
 
     /*m_cubeIndexBuffer = cube.indexBuffer.size();
     m_sphereIndexBuffer = sphere.indexBuffer.size();*/
@@ -146,7 +170,9 @@ Application::Application(int argc, char** argv):
     uLightDir_vsLoc = glGetUniformLocation(m_program.glId(), "uLightDir_vs");
     uLightIntensityLoc = glGetUniformLocation(m_program.glId(), "uLightIntensity");
 
-    uTextureLoc = glGetUniformLocation(m_program.glId(), "uKdSampler");
+    m_uDiffuseLoc = glGetUniformLocation(m_program.glId(), "uKdSampler");
+    m_uAmbiantLoc = glGetUniformLocation(m_program.glId(), "uKaSampler");
+    m_uSpecularLoc = glGetUniformLocation(m_program.glId(), "uKsSampler");
 
     const GLint positionAttrLocation = 0;
     const GLint normalAttrLocation = 1;
@@ -172,10 +198,21 @@ Application::Application(int argc, char** argv):
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         // TEXTURES //
-    glGenTextures(2, m_textures);
+    m_textures.resize(m_crytekSponzaObj.textures.size());
+    glGenTextures(m_crytekSponzaObj.textures.size(), m_textures.data());
+
+    for(int i=0; i < m_crytekSponzaObj.textures.size(); i++){
+        glBindTexture(GL_TEXTURE_2D, m_textures[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_crytekSponzaObj.textures[i].width(), m_crytekSponzaObj.textures[i].height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, m_crytekSponzaObj.textures[i].data());
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 
         // Texture poil
-    glmlv::Image2DRGBA poils = glmlv::readImage(m_AppPath.parent_path() / "assets" / m_AppName /"img" / "poilRose.jpg");
+    /*glmlv::Image2DRGBA poils = glmlv::readImage(m_AppPath.parent_path() / "assets" / m_AppName /"img" / "poilRose.jpg");
 
     glBindTexture(GL_TEXTURE_2D, m_textures[0]);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, poils.width(), poils.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, poils.data());
@@ -194,7 +231,7 @@ Application::Application(int argc, char** argv):
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);*/
 
     ImGui::GetIO().IniFilename = m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows positions in this file
  
