@@ -57,11 +57,18 @@ private:
     GLint m_uAmbiantLoc = -1;
     GLint m_uDiffuseLoc = -1;
     GLint m_uShininessLoc = -1;
-
+    GLint m_uLightDir_vsGLoc = -1;
+    GLint m_uLightIntensityGLoc = -1;
+    GLint m_uGPositionGLoc = -1;
+    GLint m_uGNormalGLoc = -1;
+    GLint m_uGAmbientGLoc = -1;
+    GLint m_uGDiffuseGLoc = -1;
+    GLint m_uGlossyShininessGLoc = -1;
 
     GLuint m_cubeIndexBuffer;
     GLuint m_sphereIndexBuffer;
     glmlv::GLProgram m_program;
+    glmlv::GLProgram m_programG;
     glmlv::ViewController m_viewController = glmlv::ViewController(m_GLFWHandle.window());
 
     glmlv::ObjData m_crytekSponzaObj;

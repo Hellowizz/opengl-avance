@@ -113,12 +113,16 @@ int Application::run()
             switch(radioChoice){
                 case 0 :
                     GTextuteType = GPosition;
+                    break;
                 case 1 :
                     GTextuteType = GNormal;
+                    break;
                 case 2 :
                     GTextuteType = GAmbient;
+                    break;
                 case 3 :
                     GTextuteType = GDiffuse;
+                    break;
             }
             ImGui::End();
         }
@@ -182,7 +186,9 @@ Application::Application(int argc, char** argv):
 
     // Here we load and compile shaders from the library
     m_program = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "geometryPass.vs.glsl", m_ShadersRootPath / m_AppName / "geometryPass.fs.glsl" });
-    
+    m_programG = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "shadingPass.vs.glsl", m_ShadersRootPath / m_AppName / "shadingPass.fs.glsl" });
+
+
     uMVPMatrixLoc = glGetUniformLocation(m_program.glId() , "uModelViewProjMatrix");
     MVMatrixLoc = glGetUniformLocation(m_program.glId() , "uModelViewMatrix");
     NormalMatrixLoc = glGetUniformLocation(m_program.glId() , "uNormalMatrix");
@@ -202,6 +208,15 @@ Application::Application(int argc, char** argv):
     m_uAmbiantLoc = glGetUniformLocation(m_program.glId(), "uKaSampler");
     m_uSpecularLoc = glGetUniformLocation(m_program.glId(), "uKsSampler");
     m_uShininessLoc = glGetUniformLocation(m_program.glId(), "uShininessSampler");
+
+    m_uLightDir_vsGLoc = glGetUniformLocation(m_programG.glId(), "uLightDir_vs");
+    m_uLightIntensityGLoc = glGetUniformLocation(m_programG.glId(), "uLightIntensity");
+
+    m_uGPositionGLoc = glGetUniformLocation(m_programG.glId(), "uGPosition");
+    m_uGNormalGLoc = glGetUniformLocation(m_programG.glId(), "uGNormal");
+    m_uGAmbientGLoc = glGetUniformLocation(m_programG.glId(), "uGAmbient");
+    m_uGDiffuseGLoc = glGetUniformLocation(m_programG.glId(), "uGDiffuse");
+    m_uGlossyShininessGLoc = glGetUniformLocation(m_programG.glId(), "uGlossyShininess");
 
     const GLint positionAttrLocation = 0;
     const GLint normalAttrLocation = 1;
@@ -270,6 +285,40 @@ Application::Application(int argc, char** argv):
     }
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+    glGenBuffers(1, &m_VBO);  // gen vbo
+    
+    Vertex triangleVertices[] = {
+        Vertex { glm::vec2(-1, -1), glm::vec3(1, 0, 0) },
+        Vertex { glm::vec2(3, 1), glm::vec3(0, 1, 0) },
+        Vertex { glm::vec2(-1, 3), glm::vec3(0, 0, 1) }
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);  // biding vbo
+
+    glBufferStorage(GL_ARRAY_BUFFER, sizeof(triangleVertices), triangleVertices, 0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenVertexArrays(1, &m_VAO);
+
+    // Vertex attrib locations are defined in the vertex shader (we can also use glGetAttribLocation(program, attribname) with attribute names after program compilation in order to get these numbers)
+    const GLint positionAttrLocation = 0;
+    const GLint colorAttrLocation = 1;
+
+    glBindVertexArray(m_VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+
+    glEnableVertexAttribArray(positionAttrLocation);
+    glVertexAttribPointer(positionAttrLocation, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*) offsetof(Vertex, position));
+
+    glEnableVertexAttribArray(colorAttrLocation);
+    glVertexAttribPointer(colorAttrLocation, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*) offsetof(Vertex, color));
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glBindVertexArray(0);
 
 
         // Texture poil

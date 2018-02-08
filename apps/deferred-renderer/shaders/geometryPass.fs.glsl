@@ -21,7 +21,7 @@ uniform vec3 uKa; // couleur amb.
 uniform vec3 uKd; // couleur diffuse 
 uniform vec3 uKs; // couleur speculaire
 uniform float uShininess; // brillance
-uniform vec3 uLightDir_vs; // direction vers la lumiere // Notez le suffixe _vs sur la direction: cela indique que nous allons travailler dans le view space; il faudra donc multiplier la direction de la lumière par la View Matrix avant de l'envoyer au shader. 
+/*uniform vec3 uLightDir_vs; // direction vers la lumiere // Notez le suffixe _vs sur la direction: cela indique que nous allons travailler dans le view space; il faudra donc multiplier la direction de la lumière par la View Matrix avant de l'envoyer au shader. 
 uniform vec3 uLightIntensity; // intensite de la lumiere (couleur)
 
 vec3 blinnPhong(vec3 diffuse, vec3 specular){
@@ -29,7 +29,7 @@ vec3 blinnPhong(vec3 diffuse, vec3 specular){
 	vec3 viewVector = (normalize(-vViewSpacePosition));
 	vec3 halfVector = normalize(lightVector + viewVector);
 	return uLightIntensity * (diffuse * dot(lightVector,vViewSpaceNormal) + specular * pow(dot(halfVector,vViewSpaceNormal), uShininess));
-}
+}*/
 
 void main() {
 	vec3 diffuse = uKd * texture(uKdSampler, vTexCoords).rgb;
@@ -37,7 +37,7 @@ void main() {
 	vec3 specular = uKs * texture(uKsSampler, vTexCoords).rgb;
 	float shininess = uShininess * texture(uShininessSampler, vTexCoords).r;
 
-	fFragColor = blinnPhong(diffuse, specular) + ambiant;	
+	//fFragColor = blinnPhong(diffuse, specular) + ambiant;	
 
 	fNormal = normalize(vViewSpaceNormal);
 	fPosition = vViewSpacePosition;
