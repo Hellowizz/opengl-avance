@@ -44,11 +44,15 @@ private:
     GLuint m_VAO = 0;
     GLuint m_FBO = 0;
 
+    GLuint m_VAOTriangle;
+    GLuint m_VBOTriangle;
+
     GLint uMVPMatrixLoc = -1;
     GLint MVMatrixLoc = -1;
     GLint NormalMatrixLoc = -1;
     GLint uKdLoc = -1;
     GLint uKsLoc = -1;
+    GLint uKaLoc = -1;
     GLint uShininessLoc = -1;
     GLint uLightDir_vsLoc = -1;
     GLint uLightIntensityLoc = -1;
@@ -61,14 +65,14 @@ private:
     GLint m_uLightIntensityGLoc = -1;
     GLint m_uGPositionGLoc = -1;
     GLint m_uGNormalGLoc = -1;
-    GLint m_uGAmbientGLoc = -1;
+    GLint m_uGAmbiantGLoc = -1;
     GLint m_uGDiffuseGLoc = -1;
     GLint m_uGlossyShininessGLoc = -1;
 
     GLuint m_cubeIndexBuffer;
     GLuint m_sphereIndexBuffer;
-    glmlv::GLProgram m_program;
-    glmlv::GLProgram m_programG;
+    glmlv::GLProgram m_programGBuffer;
+    glmlv::GLProgram m_programShading;
     glmlv::ViewController m_viewController = glmlv::ViewController(m_GLFWHandle.window());
 
     glmlv::ObjData m_crytekSponzaObj;

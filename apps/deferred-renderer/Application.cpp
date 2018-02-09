@@ -14,11 +14,20 @@ int Application::run()
     float clearColor[3] = { 0, 0, 0 }; 
     int radioChoice = 0;
     
+    glm::vec3 lightDir(1, 1, 1);
+    lightDir = glm::normalize(lightDir);
+
+    glm::vec3 lightColor(1, 1, 1);
+
+    float alphaLight;
+    float thetaLight;
+
     // Loop until the user closes the window
     for (auto iterationCount = 0u; !m_GLFWHandle.shouldClose(); ++iterationCount)
     {
         const auto seconds = glfwGetTime();
 
+        
         // vitesse de la camera
         const auto m_sceneSize = glm::length(m_crytekSponzaObj.bboxMax - m_crytekSponzaObj.bboxMin);
         m_viewController.setSpeed(m_sceneSize * 0.1f);
@@ -35,24 +44,21 @@ int Application::run()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        m_program.use();
+        m_programGBuffer.use();
+
+        glViewport(0, 0, m_nWindowWidth, m_nWindowHeight);
 
         glUniformMatrix4fv(uMVPMatrixLoc, 1, GL_FALSE, glm::value_ptr(uMVPMatrix));
         glUniformMatrix4fv(MVMatrixLoc, 1, GL_FALSE, glm::value_ptr(MVMatrix));
         glUniformMatrix4fv(NormalMatrixLoc, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
 
-        glUniform3fv(uKdLoc, 1, glm::value_ptr(glm::vec3(0.7,0.4,0.4)));
-        glUniform3fv(uKsLoc, 1, glm::value_ptr(glm::vec3(0.7,0.4,0.4)));
-        glUniform1f(uShininessLoc, 30.f);
-        glUniform3fv(uLightDir_vsLoc, 1, glm::value_ptr(ViewMatrix * glm::vec4(1, 1, 1, 0)));
-        glUniform3fv(uLightIntensityLoc, 1, glm::value_ptr(glm::vec3(1,1,1)));
+        
 
         // Put here rendering code
         glBindVertexArray(m_VAO);
 
         // Drawing code
-        //glDrawElements(GL_TRIANGLES, m_cubeIndexBuffer, GL_UNSIGNED_INT, nullptr);
-        //glDrawElements(GL_TRIANGLES, m_sphereIndexBuffer, GL_UNSIGNED_INT, nullptr);
+
         auto indexOffset = 0;
         for (int i=0; i<m_crytekSponzaObj.shapeCount; i++) {
             auto indexCount = m_crytekSponzaObj.indexCountPerShape[i];
@@ -83,6 +89,11 @@ int Application::run()
             glUniform1i(m_uAmbiantLoc, 0);
             glUniform1i(m_uDiffuseLoc, 2);
 
+            glUniform3fv(uKdLoc, 1, glm::value_ptr(material.Kd));
+            glUniform3fv(uKaLoc, 1, glm::value_ptr(material.Ka));
+            glUniform3fv(uKsLoc, 1, glm::value_ptr(material.Ks));
+            glUniform1f(uShininessLoc, material.shininess);
+
             glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, (const GLvoid*) (indexOffset * sizeof(GLuint)));
             indexOffset += indexCount;
         }
@@ -90,6 +101,32 @@ int Application::run()
         glBindVertexArray(0);
 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // Restore screen as draw framebuffer
+
+            // SHADING PASS
+        m_programShading.use();
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        lightDir.x = cos(glm::radians(alphaLight)) * sin(glm::radians(thetaLight));
+        lightDir.y = sin(glm::radians(alphaLight)) * sin(glm::radians(thetaLight));
+        lightDir.z = cos(glm::radians(thetaLight));
+        glUniform3fv(m_uLightDir_vsGLoc, 1, glm::value_ptr(ViewMatrix * glm::vec4(lightDir, 0)));
+        glUniform3fv(m_uLightIntensityGLoc, 1, glm::value_ptr(lightColor));
+
+        glUniform1i(m_uGPositionGLoc, 0);
+        glUniform1i(m_uGNormalGLoc, 1);
+        glUniform1i(m_uGAmbiantGLoc, 2);
+        glUniform1i(m_uGDiffuseGLoc, 3);
+        glUniform1i(m_uGlossyShininessGLoc, 4);
+
+        for (int i=0; i<5; i++){
+            glActiveTexture( GL_TEXTURE0 + i);
+            glBindTexture(GL_TEXTURE_2D, m_GBufferTextures[i]);
+        }
+
+        glBindVertexArray(m_VAOTriangle);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
 
         GBufferTextureType GTextuteType;
        
@@ -104,7 +141,16 @@ int Application::run()
                 glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.f);
             }
 
-            
+            if (ImGui::InputFloat3("lightDir", glm::value_ptr(lightDir)))
+            {
+                lightDir = glm::normalize(lightDir);
+            }
+
+            ImGui::InputFloat3("lightColor", glm::value_ptr(lightColor));
+
+            ImGui::InputFloat("AlphaLight", &alphaLight);
+            ImGui::InputFloat("ThetaLight", &thetaLight);
+
             ImGui::RadioButton("Position", &radioChoice, 0);
             ImGui::RadioButton("Normal", &radioChoice, 1);
             ImGui::RadioButton("Ambient", &radioChoice, 2);
@@ -126,14 +172,13 @@ int Application::run()
             }
             ImGui::End();
         }
-
+#if 0
          // Blit on screen
         glBindFramebuffer(GL_READ_FRAMEBUFFER, m_FBO);
         glReadBuffer(GL_COLOR_ATTACHMENT0 + GTextuteType);
 
         glBlitFramebuffer(0, 0, m_nWindowWidth, m_nWindowHeight, 0, 0,  m_nWindowWidth, m_nWindowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-
-
+#endif
         const auto viewportSize = m_GLFWHandle.framebufferSize();
         glViewport(0, 0, viewportSize.x, viewportSize.y);
         ImGui::Render();
@@ -154,6 +199,16 @@ int Application::run()
     return 0;
 }
 
+struct Vertex
+{
+    glm::vec2 position;
+    glm::vec3 color;
+
+    Vertex(glm::vec2 position, glm::vec3 color):
+        position(position), color(color)
+    {}
+};
+
 Application::Application(int argc, char** argv):
     m_AppPath { glmlv::fs::path{ argv[0] } },
     m_AppName { m_AppPath.stem().string() },
@@ -164,14 +219,8 @@ Application::Application(int argc, char** argv):
 {
     glEnable(GL_DEPTH_TEST);
 
-    /*glmlv::SimpleGeometry cube = glmlv::makeCube();
-    glmlv::SimpleGeometry sphere = glmlv::makeSphere(100);*/
-
     // MODELE OBJ
     glmlv::loadObj(m_AssetsRootPath / "glmlv" / "models" / "crytek-sponza" / "sponza.obj" , m_crytekSponzaObj);
-
-    /*m_cubeIndexBuffer = cube.indexBuffer.size();
-    m_sphereIndexBuffer = sphere.indexBuffer.size();*/
 
     glGenBuffers(1, &m_VBO);  // gen vbo
     glBindBuffer(GL_ARRAY_BUFFER, m_VBO);  // biding vbo
@@ -185,38 +234,34 @@ Application::Application(int argc, char** argv):
     glBindBuffer(GL_ARRAY_BUFFER, 0);  // debind ibo
 
     // Here we load and compile shaders from the library
-    m_program = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "geometryPass.vs.glsl", m_ShadersRootPath / m_AppName / "geometryPass.fs.glsl" });
-    m_programG = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "shadingPass.vs.glsl", m_ShadersRootPath / m_AppName / "shadingPass.fs.glsl" });
+    m_programGBuffer = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "geometryPass.vs.glsl", m_ShadersRootPath / m_AppName / "geometryPass.fs.glsl" });
+    m_programShading = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "shadingPass.vs.glsl", m_ShadersRootPath / m_AppName / "shadingPass.fs.glsl" });
 
 
-    uMVPMatrixLoc = glGetUniformLocation(m_program.glId() , "uModelViewProjMatrix");
-    MVMatrixLoc = glGetUniformLocation(m_program.glId() , "uModelViewMatrix");
-    NormalMatrixLoc = glGetUniformLocation(m_program.glId() , "uNormalMatrix");
-#define FOO(u) if(u == -1) std::cerr << #u << " is -1! (is it used?)" << std::endl;
-    FOO(uMVPMatrixLoc);
-    FOO(MVMatrixLoc);
-    FOO(NormalMatrixLoc);
-#undef FOO
+    uMVPMatrixLoc = glGetUniformLocation(m_programGBuffer.glId() , "uModelViewProjMatrix");
+    MVMatrixLoc = glGetUniformLocation(m_programGBuffer.glId() , "uModelViewMatrix");
+    NormalMatrixLoc = glGetUniformLocation(m_programGBuffer.glId() , "uNormalMatrix");
 
-    uKdLoc = glGetUniformLocation(m_program.glId(), "uKd");
-    uKsLoc = glGetUniformLocation(m_program.glId(), "uKs");
-    uShininessLoc = glGetUniformLocation(m_program.glId(), "uShininess");
-    uLightDir_vsLoc = glGetUniformLocation(m_program.glId(), "uLightDir_vs");
-    uLightIntensityLoc = glGetUniformLocation(m_program.glId(), "uLightIntensity");
+    uKdLoc = glGetUniformLocation(m_programGBuffer.glId(), "uKd");
+    uKsLoc = glGetUniformLocation(m_programGBuffer.glId(), "uKs");
+    uKaLoc = glGetUniformLocation(m_programGBuffer.glId(), "uKa");
+    uShininessLoc = glGetUniformLocation(m_programGBuffer.glId(), "uShininess");
+    uLightDir_vsLoc = glGetUniformLocation(m_programGBuffer.glId(), "uLightDir_vs");
+    uLightIntensityLoc = glGetUniformLocation(m_programGBuffer.glId(), "uLightIntensity");
 
-    m_uDiffuseLoc = glGetUniformLocation(m_program.glId(), "uKdSampler");
-    m_uAmbiantLoc = glGetUniformLocation(m_program.glId(), "uKaSampler");
-    m_uSpecularLoc = glGetUniformLocation(m_program.glId(), "uKsSampler");
-    m_uShininessLoc = glGetUniformLocation(m_program.glId(), "uShininessSampler");
+    m_uDiffuseLoc = glGetUniformLocation(m_programGBuffer.glId(), "uKdSampler");
+    m_uAmbiantLoc = glGetUniformLocation(m_programGBuffer.glId(), "uKaSampler");
+    m_uSpecularLoc = glGetUniformLocation(m_programGBuffer.glId(), "uKsSampler");
+    m_uShininessLoc = glGetUniformLocation(m_programGBuffer.glId(), "uShininessSampler");
 
-    m_uLightDir_vsGLoc = glGetUniformLocation(m_programG.glId(), "uLightDir_vs");
-    m_uLightIntensityGLoc = glGetUniformLocation(m_programG.glId(), "uLightIntensity");
+    m_uLightDir_vsGLoc = glGetUniformLocation(m_programShading.glId(), "uLightDir_vs");
+    m_uLightIntensityGLoc = glGetUniformLocation(m_programShading.glId(), "uLightIntensity");
 
-    m_uGPositionGLoc = glGetUniformLocation(m_programG.glId(), "uGPosition");
-    m_uGNormalGLoc = glGetUniformLocation(m_programG.glId(), "uGNormal");
-    m_uGAmbientGLoc = glGetUniformLocation(m_programG.glId(), "uGAmbient");
-    m_uGDiffuseGLoc = glGetUniformLocation(m_programG.glId(), "uGDiffuse");
-    m_uGlossyShininessGLoc = glGetUniformLocation(m_programG.glId(), "uGlossyShininess");
+    m_uGPositionGLoc = glGetUniformLocation(m_programShading.glId(), "uGPosition");
+    m_uGNormalGLoc = glGetUniformLocation(m_programShading.glId(), "uGNormal");
+    m_uGAmbiantGLoc = glGetUniformLocation(m_programShading.glId(), "uGAmbiant");
+    m_uGDiffuseGLoc = glGetUniformLocation(m_programShading.glId(), "uGDiffuse");
+    m_uGlossyShininessGLoc = glGetUniformLocation(m_programShading.glId(), "uGlossyShininess");
 
     const GLint positionAttrLocation = 0;
     const GLint normalAttrLocation = 1;
@@ -275,6 +320,9 @@ Application::Application(int argc, char** argv):
         }
     }
 
+        // END TEXTURES //
+
+     // we will write into 5 textures from the fragment shader
     GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
     glDrawBuffers(5, drawBuffers);
 
@@ -286,62 +334,23 @@ Application::Application(int argc, char** argv):
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
-    glGenBuffers(1, &m_VBO);  // gen vbo
-    
-    Vertex triangleVertices[] = {
-        Vertex { glm::vec2(-1, -1), glm::vec3(1, 0, 0) },
-        Vertex { glm::vec2(3, 1), glm::vec3(0, 1, 0) },
-        Vertex { glm::vec2(-1, 3), glm::vec3(0, 0, 1) }
-    };
 
-    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);  // biding vbo
+        // TRIANGLE //
 
-    glBufferStorage(GL_ARRAY_BUFFER, sizeof(triangleVertices), triangleVertices, 0);
+    glGenBuffers(1, &m_VBOTriangle);
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBOTriangle);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    GLfloat data[] = { -1, -1, 3, -1, -1, 3 };
+    glBufferStorage(GL_ARRAY_BUFFER, sizeof(data), data, 0);
 
-    glGenVertexArrays(1, &m_VAO);
-
-    // Vertex attrib locations are defined in the vertex shader (we can also use glGetAttribLocation(program, attribname) with attribute names after program compilation in order to get these numbers)
-    const GLint positionAttrLocation = 0;
-    const GLint colorAttrLocation = 1;
-
-    glBindVertexArray(m_VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-
-    glEnableVertexAttribArray(positionAttrLocation);
-    glVertexAttribPointer(positionAttrLocation, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*) offsetof(Vertex, position));
-
-    glEnableVertexAttribArray(colorAttrLocation);
-    glVertexAttribPointer(colorAttrLocation, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (const GLvoid*) offsetof(Vertex, color));
+    glGenVertexArrays(1, &m_VAOTriangle);
+    glBindVertexArray(m_VAOTriangle);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glBindVertexArray(0);
-
-
-        // Texture poil
-    /*glmlv::Image2DRGBA poils = glmlv::readImage(m_AppPath.parent_path() / "assets" / m_AppName /"img" / "poilRose.jpg");
-
-    glBindTexture(GL_TEXTURE_2D, m_textures[0]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, poils.width(), poils.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, poils.data());
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-        // Texture bleue
-    glmlv::Image2DRGBA bleue = glmlv::readImage(m_AppPath.parent_path() / "assets" / m_AppName / "img" / "texturebleue.jpg");
-
-    glBindTexture(GL_TEXTURE_2D, m_textures[1]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, bleue.width(), bleue.height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, bleue.data());
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glBindTexture(GL_TEXTURE_2D, 0);*/
 
     ImGui::GetIO().IniFilename = m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows positions in this file
  
