@@ -37,7 +37,7 @@ public:
 
         glfwMakeContextCurrent(m_pWindow);
 
-        glfwSwapInterval(0); // No VSync
+        glfwSwapInterval(1); // No VSync
 
         if (!gladLoadGL()) {
             std::cerr << "Unable to init OpenGL.\n";
