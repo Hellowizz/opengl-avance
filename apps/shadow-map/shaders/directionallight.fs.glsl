@@ -14,10 +14,9 @@ uniform float uShininess; // brillance
 uniform vec3 uLightDir_vs; // direction vers la lumiere // Notez le suffixe _vs sur la direction: cela indique que nous allons travailler dans le view space; il faudra donc multiplier la direction de la lumière par la View Matrix avant de l'envoyer au shader. 
 uniform vec3 uLightIntensity; // intensite de la lumiere (couleur)
 
-
 out vec3 fFragColor;
 
-vec3 blinnPhong(vec4 diffuse, vec4 specular){
+vec3 blinnPhong(vec3 diffuse, vec3 specular){
 	
 	vec3 lightVector = normalize(uLightDir_vs);
 	vec3 viewVector = (normalize(-vViewSpacePosition));
@@ -26,9 +25,9 @@ vec3 blinnPhong(vec4 diffuse, vec4 specular){
 }
 
 void main() {
-	vec4 diffuse = vec4(uKd, 0)* texture(uKdSampler, vTexCoords);
-	vec4 ambiant = texture(uKaSampler, vTexCoords);
-	vec4 specular = vec4(uKs, 0) * texture(uKsSampler, vTexCoords);
+	vec3 diffuse = uKd * texture(uKdSampler, vTexCoords).rgb;
+	vec3 ambiant = texture(uKaSampler, vTexCoords).rgb;
+	vec3 specular = uKs * texture(uKsSampler, vTexCoords).rgb;
 
 	fFragColor = blinnPhong(diffuse, specular) + ambiant.xyz;	
 }

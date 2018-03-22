@@ -1,4 +1,4 @@
-#include "Application.hpp"
+    #include "Application.hpp"
 
 #include <iostream>
 
@@ -22,16 +22,26 @@ int Application::run()
     float alphaLight;
     float thetaLight;
 
+    // Realocate texture
+//    glGenTextures(1, &m_directionalSMTexture);
+//    glBindTexture(GL_TEXTURE_2D, m_directionalSMTexture);
+//    glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, m_nDirectionalSMResolution, m_nDirectionalSMResolution);
+//    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Attach new texture to FBO
+//    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_directionalSMFBO);
+//    glBindTexture(GL_TEXTURE_2D, m_directionalSMTexture);
+//    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_directionalSMTexture, 0);
+//    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
     // Loop until the user closes the window
     for (auto iterationCount = 0u; !m_GLFWHandle.shouldClose(); ++iterationCount)
     {
         const auto seconds = glfwGetTime();
-
         
-        // vitesse de la camera
-        const auto m_sceneSize = glm::length(m_crytekSponzaObj.bboxMax - m_crytekSponzaObj.bboxMin);
-        m_viewController.setSpeed(m_sceneSize * 0.1f);
-        glm::mat4 ProjMatrix = glm::perspective(70.f, m_nWindowWidth/float(m_nWindowHeight), 0.01f * m_sceneSize, m_sceneSize); // near = 1% de la taille de la scene, far = 100%
+                          // INITIALISATION //
+        m_viewController.setSpeed(m_SceneSizeLength * 0.1f);
+        glm::mat4 ProjMatrix = glm::perspective(70.f, m_nWindowWidth/float(m_nWindowHeight), 0.01f * m_SceneSizeLength, m_SceneSizeLength); // near = 1% de la taille de la scene, far = 100%
         glm::mat4 ModelMatrix(1);
         glm::vec3 posCamera = glm::vec3(5,5,5);
         glm::vec3 cible = glm::vec3(0, 0, 0);
@@ -40,18 +50,56 @@ int Application::run()
         glm::mat4 uMVPMatrix(ProjMatrix * MVMatrix);
         glm::mat4 NormalMatrix = glm::transpose(glm::inverse(MVMatrix));
 
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_FBO); // Set FBO as draw framebuffer
+        const auto sceneCenter = 0.5f * (m_crytekSponzaObj.bboxMin + m_crytekSponzaObj.bboxMax);
+        const float sceneRadius = m_SceneSizeLength * 0.5f;
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        const auto dirLightUpVector = computeDirectionVectorUp(glm::radians(m_DirLightPhiAngleDegrees), glm::radians(m_DirLightThetaAngleDegrees));
+        const auto dirLightViewMatrix = glm::lookAt(sceneCenter + lightDir * sceneRadius, sceneCenter, dirLightUpVector); // Will not work if m_DirLightDirection is colinear to lightUpVector
+        const auto dirLightProjMatrix = glm::ortho(-sceneRadius, sceneRadius, -sceneRadius, sceneRadius, 0.01f * sceneRadius, 2.f * sceneRadius);
+
+
+        if (directionalSMDirty)
+        {
+            // Calcul de la shadow map (**)
+            m_directionalSMProgram.use();
+
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_directionalSMFBO);
+            glViewport(0, 0, m_nDirectionalSMResolution, m_nDirectionalSMResolution);
+            glClearColor(0,0,0,0);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            glUniformMatrix4fv(m_uDirLightViewProjMatrixLocation, 1, GL_FALSE, glm::value_ptr(dirLightProjMatrix*dirLightViewMatrix));
+
+            glBindVertexArray(m_VAO);
+
+            auto indexOffset = 0;
+            for (const auto indexCount: m_crytekSponzaObj.indexCountPerShape)
+            {
+                glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT,
+                               (const GLvoid*) (indexOffset * sizeof(GLuint)));
+                indexOffset += indexCount;
+            }
+
+            glBindVertexArray(0);
+
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+            directionalSMDirty = false; // Pas de calcul au prochain tour
+        }
+
+                          // FIN INITIALISATION //
 
         m_programGBuffer.use();
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_FBO); // Set FBO as draw framebuffer
 
         glViewport(0, 0, m_nWindowWidth, m_nWindowHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 
         glUniformMatrix4fv(uMVPMatrixLoc, 1, GL_FALSE, glm::value_ptr(uMVPMatrix));
         glUniformMatrix4fv(MVMatrixLoc, 1, GL_FALSE, glm::value_ptr(MVMatrix));
         glUniformMatrix4fv(NormalMatrixLoc, 1, GL_FALSE, glm::value_ptr(NormalMatrix));
-      
+
         // Put here rendering code
         glBindVertexArray(m_VAO);
 
@@ -83,7 +131,7 @@ int Application::run()
                 glBindTexture(GL_TEXTURE_2D, 0);
 
                 // correspond aux unité de textures (GL_TEXTURE0)
-            glUniform1i(m_uSpecularLoc, 1);
+            glUniform1i(m_uSpecularLoc, 1); 
             glUniform1i(m_uAmbiantLoc, 0);
             glUniform1i(m_uDiffuseLoc, 2);
 
@@ -100,10 +148,15 @@ int Application::run()
 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // Restore screen as draw framebuffer
 
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
             // SHADING PASS
         m_programShading.use();
+        //m_displayDepthProgram.use();
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        const auto rcpViewMatrix = m_viewController.getRcpViewMatrix(); // Inverse de la view matrix de la caméra
+        glUniformMatrix4fv(m_uDirLightViewProjMatrixLoc, 1, GL_FALSE, glm::value_ptr(dirLightProjMatrix * dirLightViewMatrix * rcpViewMatrix));
+        glUniform1fv(m_uDirLightShadowMapBiasLoc, 1, &m_DirLightSMBias);
 
         lightDir.x = cos(glm::radians(alphaLight)) * sin(glm::radians(thetaLight));
         lightDir.y = sin(glm::radians(alphaLight)) * sin(glm::radians(thetaLight));
@@ -111,22 +164,33 @@ int Application::run()
         glUniform3fv(m_uLightDir_vsGLoc, 1, glm::value_ptr(ViewMatrix * glm::vec4(lightDir, 0)));
         glUniform3fv(m_uLightIntensityGLoc, 1, glm::value_ptr(lightColor));
 
-        glUniform1i(m_uGPositionGLoc, 0);
-        glUniform1i(m_uGNormalGLoc, 1);
-        glUniform1i(m_uGAmbiantGLoc, 2);
-        glUniform1i(m_uGDiffuseGLoc, 3);
-        glUniform1i(m_uGlossyShininessGLoc, 4);
+        glProgramUniform1i(m_programShading.glId(), m_uGPositionGLoc, 0);
+        glProgramUniform1i(m_programShading.glId(), m_uGNormalGLoc, 1);
+        glProgramUniform1i(m_programShading.glId(), m_uGAmbiantGLoc, 2);
+        glProgramUniform1i(m_programShading.glId(), m_uGDiffuseGLoc, 3);
+        glProgramUniform1i(m_programShading.glId(), m_uGlossyShininessGLoc, 4);
+        glProgramUniform1i(m_programShading.glId(), m_uDirLightShadowMapLoc, 5);
 
         for (int i=0; i<5; i++){
-            glActiveTexture( GL_TEXTURE0 + i);
+            glActiveTexture(GL_TEXTURE0 + i);
             glBindTexture(GL_TEXTURE_2D, m_GBufferTextures[i]);
         }
+
+        /*glActiveTexture(GL_TEXTURE5);
+        glBindTexture(GL_TEXTURE_2D, m_directionalSMTexture);
+
+        GBufferTextureType GTextureType;*/
+
+        m_displayDepthProgram.use();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_directionalSMTexture);
+
+        glUniform1i(m_uGDepthSamplerLocation, 0);
 
         glBindVertexArray(m_VAOTriangle);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glBindVertexArray(0);
-
-        GBufferTextureType GTextuteType;
        
         // GUI code:
         ImGui_ImplGlfwGL3_NewFrame();
@@ -154,29 +218,27 @@ int Application::run()
             ImGui::RadioButton("Ambient", &radioChoice, 2);
             ImGui::RadioButton("Diffuse", &radioChoice, 3);
 
-            switch(radioChoice){
-                case 0 :
-                    GTextuteType = GPosition;
-                    break;
-                case 1 :
-                    GTextuteType = GNormal;
-                    break;
-                case 2 :
-                    GTextuteType = GAmbient;
-                    break;
-                case 3 :
-                    GTextuteType = GDiffuse;
-                    break;
+            if (ImGui::CollapsingHeader("Directional Light"))
+            {
+                ImGui::ColorEdit3("DirLightColor", glm::value_ptr(m_DirLightColor));
+                ImGui::DragFloat("DirLightIntensity", &m_DirLightIntensity, 0.1f, 0.f, 100.f);
+                bool angleChanged = ImGui::DragFloat("Phi Angle", &m_DirLightPhiAngleDegrees, 1.0f, 0.0f, 360.f);
+                angleChanged = ImGui::DragFloat("Theta Angle", &m_DirLightThetaAngleDegrees, 1.0f, 0.0f, 180.f) || angleChanged;
+
+                if (angleChanged) {
+                    m_DirLightDirection = computeDirectionVector(glm::radians(m_DirLightPhiAngleDegrees), glm::radians(m_DirLightThetaAngleDegrees));
+                    directionalSMDirty = true;
+                }
+                ImGui::InputFloat("DirShadowMap Bias", &m_DirLightSMBias);
             }
             ImGui::End();
         }
-#if 0
-         // Blit on screen
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_FBO);
-        glReadBuffer(GL_COLOR_ATTACHMENT0 + GTextuteType);
 
-        glBlitFramebuffer(0, 0, m_nWindowWidth, m_nWindowHeight, 0, 0,  m_nWindowWidth, m_nWindowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-#endif
+        /*glBindFramebuffer(GL_READ_FRAMEBUFFER, m_FBO);
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+        glBlitFramebuffer(0, 0, m_nWindowWidth, m_nWindowHeight, 0, 0,  m_nWindowWidth, m_nWindowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);*/
+
         const auto viewportSize = m_GLFWHandle.framebufferSize();
         glViewport(0, 0, viewportSize.x, viewportSize.y);
         ImGui::Render();
@@ -187,10 +249,16 @@ int Application::run()
         /* Swap front and back buffers*/
         m_GLFWHandle.swapBuffers();
 
-        auto ellapsedTime = glfwGetTime() - seconds;
+        auto ellapsedTime = glfwGetTime()-seconds;
         auto guiHasFocus = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
         if (!guiHasFocus) {
-            m_viewController.update(float(ellapsedTime));
+            m_directional_light_change = m_viewController.update(float(ellapsedTime));
+        }
+
+        // Pseudo code dans le dessin de la GUI:
+        if (m_directional_light_change)
+        {
+            directionalSMDirty = true; // Il faut recalculer la shadow map
         }
     }
 
@@ -219,22 +287,31 @@ Application::Application(int argc, char** argv):
 
     // MODELE OBJ
     glmlv::loadObj(m_AssetsRootPath / "glmlv" / "models" / "crytek-sponza" / "sponza.obj" , m_crytekSponzaObj);
+    m_SceneSize =  m_crytekSponzaObj.bboxMax - m_crytekSponzaObj.bboxMin;
+    m_SceneSizeLength = glm::length(m_SceneSize);
+    m_SceneCenter = 0.5f * (m_crytekSponzaObj.bboxMax + m_crytekSponzaObj.bboxMin);
 
     glGenBuffers(1, &m_VBO);  // gen vbo
     glBindBuffer(GL_ARRAY_BUFFER, m_VBO);  // biding vbo
-    glBufferStorage(GL_ARRAY_BUFFER, m_crytekSponzaObj.vertexBuffer.size() * sizeof(m_crytekSponzaObj.vertexBuffer[0]), m_crytekSponzaObj.vertexBuffer.data(), 0);
+    glBufferStorage(GL_ARRAY_BUFFER, m_crytekSponzaObj.vertexBuffer.size() * sizeof(m_crytekSponzaObj.vertexBuffer[0]),
+                    m_crytekSponzaObj.vertexBuffer.data(), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);  // debind vbo
 
     glGenBuffers(1, &m_IBO);  // gen ibo
     glBindBuffer(GL_ARRAY_BUFFER, m_IBO);  // biding ibo
-    //glBufferStorage(GL_ARRAY_BUFFER, cube.indexBuffer.size() * sizeof(cube.indexBuffer.data()[0]), cube.indexBuffer.data(), 0);
-    glBufferStorage(GL_ARRAY_BUFFER, m_crytekSponzaObj.indexBuffer.size() * sizeof(m_crytekSponzaObj.indexBuffer.data()[0]), m_crytekSponzaObj.indexBuffer.data(), 0);
+    glBufferStorage(GL_ARRAY_BUFFER, m_crytekSponzaObj.indexBuffer.size() * sizeof(m_crytekSponzaObj.indexBuffer.data()[0]),
+                    m_crytekSponzaObj.indexBuffer.data(), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);  // debind ibo
 
     // Here we load and compile shaders from the library
-    m_programGBuffer = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "geometryPass.vs.glsl", m_ShadersRootPath / m_AppName / "geometryPass.fs.glsl" });
-    m_programShading = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "shadingPass.vs.glsl", m_ShadersRootPath / m_AppName / "shadingPass.fs.glsl" });
-    m_directionalSMProgram = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "directionalSM.vs.glsl", m_ShadersRootPath / m_AppName / "directionalSM.fs.glsl" });
+    m_programGBuffer = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "geometryPass.vs.glsl",
+                                               m_ShadersRootPath / m_AppName / "geometryPass.fs.glsl" });
+    m_programShading = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "shadingPass.vs.glsl",
+                                               m_ShadersRootPath / m_AppName / "shadingPass.fs.glsl" });
+    m_directionalSMProgram = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "directionalSM.vs.glsl",
+                                                     m_ShadersRootPath / m_AppName / "directionalSM.fs.glsl" });
+    m_displayDepthProgram = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "shadingPass.vs.glsl",
+                                                    m_ShadersRootPath / m_AppName / "displayDepth.fs.glsl" });
 
     uMVPMatrixLoc = glGetUniformLocation(m_programGBuffer.glId() , "uModelViewProjMatrix");
     MVMatrixLoc = glGetUniformLocation(m_programGBuffer.glId() , "uModelViewMatrix");
@@ -261,7 +338,13 @@ Application::Application(int argc, char** argv):
     m_uGDiffuseGLoc = glGetUniformLocation(m_programShading.glId(), "uGDiffuse");
     m_uGlossyShininessGLoc = glGetUniformLocation(m_programShading.glId(), "uGlossyShininess");
 
-    m_uDirLightViewProjMatrixLoc = glGetUniformLocation(m_directionalSMProgram.glId() , "uDirLightViewProjMatrix");
+    m_uDirLightViewProjMatrixLoc = glGetUniformLocation(m_programShading.glId() , "uDirLightViewProjMatrix");
+    m_uDirLightShadowMapLoc = glGetUniformLocation(m_programShading.glId() , "uDirLightShadowMap");
+    m_uDirLightShadowMapBiasLoc = glGetUniformLocation(m_programShading.glId() , "uDirLightShadowMapBias");
+
+
+    m_uDirLightViewProjMatrixLocation = glGetUniformLocation(m_directionalSMProgram.glId(), "uDirLightViewProjMatrix");
+    m_uGDepthSamplerLocation = glGetUniformLocation(m_displayDepthProgram.glId(), "uGDepth");
 
     const GLint positionAttrLocation = 0;
     const GLint normalAttrLocation = 1;
@@ -280,8 +363,6 @@ Application::Application(int argc, char** argv):
 
     glEnableVertexAttribArray(texCoordsAttrLocation);
     glVertexAttribPointer(texCoordsAttrLocation, 2, GL_FLOAT, GL_FALSE, sizeof(glmlv::Vertex3f3f2f), (const GLvoid*) offsetof(glmlv::Vertex3f3f2f, texCoords));
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IBO);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -292,7 +373,8 @@ Application::Application(int argc, char** argv):
 
     for(int i=0; i < m_crytekSponzaObj.textures.size(); i++){
         glBindTexture(GL_TEXTURE_2D, m_textures[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_crytekSponzaObj.textures[i].width(), m_crytekSponzaObj.textures[i].height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, m_crytekSponzaObj.textures[i].data());
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_crytekSponzaObj.textures[i].width(), m_crytekSponzaObj.textures[i].height(),
+                     0, GL_RGBA, GL_UNSIGNED_BYTE, m_crytekSponzaObj.textures[i].data());
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -305,8 +387,8 @@ Application::Application(int argc, char** argv):
         //glTexImage2D(GL_TEXTURE_2D, 0, m_GBufferTextureFormat[i], m_nWindowWidth, m_nWindowHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexStorage2D(GL_TEXTURE_2D, 1, m_GBufferTextureFormat[i], m_nWindowWidth, m_nWindowHeight);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        /*glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);*/
     }
 
     glGenFramebuffers(1, &m_FBO);
@@ -319,10 +401,8 @@ Application::Application(int argc, char** argv):
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, m_GBufferTextures[i], 0);
         }
     }
-
         // END TEXTURES //
 
-     // we will write into 5 textures from the fragment shader
     GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4 };
     glDrawBuffers(5, drawBuffers);
 
@@ -355,26 +435,30 @@ Application::Application(int argc, char** argv):
         // SM TEXTURE //
 
     glGenTextures(1, &m_directionalSMTexture);
+
     glBindTexture(GL_TEXTURE_2D, m_directionalSMTexture);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, m_nDirectionalSMResolution, m_nDirectionalSMResolution);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, 512, 512);
-
-    glGenFramebuffers(1, &m_FBOSM);
-
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_FBOSM);
-
+    glGenFramebuffers(1, &m_directionalSMFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_directionalSMFBO);
+    glBindTexture(GL_TEXTURE_2D, m_directionalSMTexture);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_directionalSMTexture, 0);
-    GLenum drawBufferDepth[] = { GL_DEPTH_ATTACHMENT };
-    
-    glDrawBuffers(1, drawBufferDepth);
+
+    const auto fboStatus = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+        if (fboStatus != GL_FRAMEBUFFER_COMPLETE)
+        {
+            std::cerr << "Error on building directional shadow mapping framebuffer. Error code = " << fboStatus << std::endl;
+            throw std::runtime_error("Error on building directional shadow mapping framebuffer.");
+        }
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
     glGenSamplers(1, &m_directionalSMSampler);
+    glBindSampler(m_directionalSMTexture, m_directionalSMSampler);
     glSamplerParameteri(m_directionalSMSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glSamplerParameteri(m_directionalSMSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glSamplerParameteri(m_directionalSMSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glSamplerParameteri(m_directionalSMSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
     ImGui::GetIO().IniFilename = m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows positions in this file
  

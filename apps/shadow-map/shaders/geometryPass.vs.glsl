@@ -14,7 +14,7 @@ out vec2 vTexCoords;
 
 void main() {
 	vViewSpacePosition = (uModelViewMatrix * vec4(aPosition, 1)).xyz;
-	vViewSpaceNormal = (uNormalMatrix * vec4(aNormal, 0)).xyz;
+        vViewSpaceNormal = (uNormalMatrix * vec4(aNormal, 0)).xyz;
 	vTexCoords = aTexCoords;
 	gl_Position = uModelViewProjMatrix * vec4(aPosition, 1);
 }
