@@ -91,7 +91,8 @@ bool ViewController::update(float elapsedTime)
 
     frontVector = -vec3(newRcpViewMatrix[2]);
     leftVector = -vec3(newRcpViewMatrix[0]);
-    upVector = cross(frontVector, leftVector);
+    // upVector = cross(frontVector, leftVector);
+    upVector = vec3(0,1,0);
 
     if (hasMoved) {
         setViewMatrix(lookAt(position, position + frontVector, upVector));
