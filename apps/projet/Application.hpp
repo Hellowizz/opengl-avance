@@ -5,8 +5,11 @@
 #include <glmlv/GLProgram.hpp>
 #include <glmlv/ViewController.hpp>
 #include <glmlv/load_obj.hpp>
+#include "glm/ext.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
+
+#include "SolarSystem.hpp"
 
 struct ModelObj
 {
@@ -102,9 +105,9 @@ struct ModelInstance
         model = _model;
     }
 
-    void setModelMatrix(glm::mat4 modelMatrix)
+    void setModelMatrix(glm::mat4 _modelMatrix)
     {
-        modelMatrix = modelMatrix;
+        modelMatrix = _modelMatrix;
     }
 
     void draw(const glm::mat4 & ViewMatrix, const glm::mat4 & ProjMatrix)
@@ -197,8 +200,11 @@ private:
     const glmlv::fs::path m_ShadersRootPath;
     const glmlv::fs::path m_AssetsRootPath;
 
+    SolarSystem m_cSolarSystem;
+
     ModelObj m_planeteRougeModelObj;
     ModelInstance m_planeteRougeInstance;
+    ModelInstance m_planeteRougeInstance2;
 
     std::vector<GLuint> m_textures;
 

@@ -28,11 +28,9 @@ int Application::run()
         const auto seconds = glfwGetTime();
         
         // vitesse de la camera
-        float m_sceneSize = 2.0f; //glm::length(m_pla.bboxMax - m_crytekSponzaObj.bboxMin);
+        float m_sceneSize = 10.0f; //glm::length(m_pla.bboxMax - m_crytekSponzaObj.bboxMin);
         m_viewController.setSpeed(m_sceneSize * 0.1f);
         glm::mat4 ProjMatrix = glm::perspective(70.f, m_nWindowWidth/float(m_nWindowHeight), 0.01f * m_sceneSize, m_sceneSize); // near = 1% de la taille de la scene, far = 100%
-        glm::vec3 posCamera = glm::vec3(5,5,5);
-        glm::vec3 cible = glm::vec3(0, 0, 0);
         glm::mat4 ViewMatrix = m_viewController.getViewMatrix();
 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_FBO); // Set FBO as draw framebuffer
@@ -44,6 +42,7 @@ int Application::run()
 
             // MODELS DRAWING CODE
         m_planeteRougeInstance.draw(ViewMatrix, ProjMatrix);
+        m_planeteRougeInstance2.draw(ViewMatrix, ProjMatrix);
 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // Restore screen as draw framebuffer
 
@@ -179,7 +178,9 @@ Application::Application(int argc, char** argv):
     // DECLARATION OF ALL THE .OBJ
     m_planeteRougeModelObj.load(m_AssetsRootPath / "projet" / "obj" / "planeterouge.obj");
     m_planeteRougeInstance.setModel(&m_planeteRougeModelObj);
-    m_planeteRougeInstance.setModelMatrix(glm::mat4(1));
+    m_planeteRougeInstance.setModelMatrix(glm::translate (glm::scale(glm::mat4(0.01), glm::vec3(0.05)), glm::vec3(2,0,0)));
+    m_planeteRougeInstance2.setModel(&m_planeteRougeModelObj);
+    m_planeteRougeInstance2.setModelMatrix(glm::translate (glm::scale(glm::mat4(0.02), glm::vec3(0.05)), glm::vec3(0,2,0)));
 
     // Here we load and compile shaders from the library
     m_programGBuffer = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "geometryPass.vs.glsl", m_ShadersRootPath / m_AppName / "geometryPass.fs.glsl" });
