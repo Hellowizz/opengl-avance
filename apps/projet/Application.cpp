@@ -1,6 +1,7 @@
 #include "Application.hpp"
 
 #include <iostream>
+#include <cstdlib>
 
 #include <imgui.h>
 #include <glmlv/imgui_impl_glfw_gl3.hpp>
@@ -41,8 +42,9 @@ int Application::run()
         glViewport(0, 0, m_nWindowWidth, m_nWindowHeight);
 
             // MODELS DRAWING CODE
-        m_planeteRougeInstance.draw(ViewMatrix, ProjMatrix);
-        m_planeteRougeInstance2.draw(ViewMatrix, ProjMatrix);
+        for(auto & planetInstance : m_planetInstances) {
+            planetInstance.draw(ViewMatrix, ProjMatrix);
+        }
 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // Restore screen as draw framebuffer
 
@@ -72,8 +74,11 @@ int Application::run()
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glBindVertexArray(0);
 
-        GBufferTextureType GTextuteType;
+        GBufferTextureType GTextureType;
        
+        // TODO remove this
+        static float time = 0;
+
         // GUI code:
         ImGui_ImplGlfwGL3_NewFrame();
 
@@ -102,24 +107,25 @@ int Application::run()
 
             switch(radioChoice){
                 case 0 :
-                    GTextuteType = GPosition;
+                    GTextureType = GPosition;
                     break;
                 case 1 :
-                    GTextuteType = GNormal;
+                    GTextureType = GNormal;
                     break;
                 case 2 :
-                    GTextuteType = GAmbient;
+                    GTextureType = GAmbient;
                     break;
                 case 3 :
-                    GTextuteType = GDiffuse;
+                    GTextureType = GDiffuse;
                     break;
             }
+            ImGui::SliderFloat("time", &time, 0, 10);
             ImGui::End();
         }
 #if 0
          // Blit on screen
         glBindFramebuffer(GL_READ_FRAMEBUFFER, m_FBO);
-        glReadBuffer(GL_COLOR_ATTACHMENT0 + GTextuteType);
+        glReadBuffer(GL_COLOR_ATTACHMENT0 + GTextureType);
 
         glBlitFramebuffer(0, 0, m_nWindowWidth, m_nWindowHeight, 0, 0,  m_nWindowWidth, m_nWindowHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 #endif
@@ -137,6 +143,13 @@ int Application::run()
         auto guiHasFocus = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
         if (!guiHasFocus) {
             m_viewController.update(float(ellapsedTime));
+        }
+
+        // update solar system
+        // m_cSolarSystem.update(time);
+        m_cSolarSystem.update(glfwGetTime());
+        for(int i = 0; i < m_planetInstances.size(); ++i) {
+            m_planetInstances[i].setModelMatrix(m_cSolarSystem.planets[i]->getWorldMatrix());
         }
     }
 
@@ -176,11 +189,28 @@ Application::Application(int argc, char** argv):
     glEnable(GL_DEPTH_TEST);
 
     // DECLARATION OF ALL THE .OBJ
-    m_planeteRougeModelObj.load(m_AssetsRootPath / "projet" / "obj" / "planeterouge.obj");
-    m_planeteRougeInstance.setModel(&m_planeteRougeModelObj);
-    m_planeteRougeInstance.setModelMatrix(glm::translate (glm::scale(glm::mat4(0.01), glm::vec3(0.05)), glm::vec3(2,0,0)));
-    m_planeteRougeInstance2.setModel(&m_planeteRougeModelObj);
-    m_planeteRougeInstance2.setModelMatrix(glm::translate (glm::scale(glm::mat4(0.02), glm::vec3(0.05)), glm::vec3(0,2,0)));
+    std::vector< glmlv::fs::path > modelPaths = {
+        m_AssetsRootPath / "projet" / "planet_rouge" / "planeterouge.obj",
+        m_AssetsRootPath / "projet" / "planet_2" / "planeterouge.obj",
+        m_AssetsRootPath / "projet" / "planet_3" / "planeterouge.obj",
+        m_AssetsRootPath / "projet" / "planet_4" / "planeterouge.obj",
+        m_AssetsRootPath / "projet" / "planet_5" / "planeterouge.obj",
+    };
+
+    for(auto & path : modelPaths) {
+        ModelObj * modelObj = new ModelObj();
+        modelObj->load(path);
+        m_planetModels.push_back(modelObj);
+    }
+    m_cSolarSystem.generate();
+    for(int i = 0; i < m_cSolarSystem.planets.size(); ++i) {
+        ModelInstance modelInstance;
+        modelInstance.setModel(m_planetModels[rand() % m_planetModels.size()]);
+        m_planetInstances.push_back(modelInstance);
+    }
+
+    // TODO remplir les instances et les linker aux planetes, puis faire la boucle d'affichage :)
+    // bounuit
 
     // Here we load and compile shaders from the library
     m_programGBuffer = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "geometryPass.vs.glsl", m_ShadersRootPath / m_AppName / "geometryPass.fs.glsl" });
@@ -292,5 +322,11 @@ Application::Application(int argc, char** argv):
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
     ImGui::GetIO().IniFilename = m_ImGuiIniFilename.c_str(); // At exit, ImGUI will store its windows positions in this file
- 
+}
+
+Application::~Application() {
+    // free all ModelObj
+    for(auto & model: m_planetModels) {
+        delete(model);
+    }
 }

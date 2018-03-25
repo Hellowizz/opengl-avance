@@ -173,6 +173,7 @@ class Application
 {
 public:
     Application(int argc, char** argv);
+    ~Application();
 
     int run();
 
@@ -200,24 +201,22 @@ private:
     const glmlv::fs::path m_ShadersRootPath;
     const glmlv::fs::path m_AssetsRootPath;
 
-    SolarSystem m_cSolarSystem;
+    // SCENE CONTENT
 
-    ModelObj m_planeteRougeModelObj;
-    ModelInstance m_planeteRougeInstance;
-    ModelInstance m_planeteRougeInstance2;
+    SolarSystem m_cSolarSystem;
+    std::vector<ModelObj*> m_planetModels;
+    std::vector<ModelInstance> m_planetInstances;
+
+    // relative to rendering
 
     std::vector<GLuint> m_textures;
 
-    GLuint m_VBO = 0;
-    GLuint m_IBO = 0;
-    GLuint m_VAO = 0;
     GLuint m_FBO = 0;
 
     GLuint m_VAOTriangle;
     GLuint m_VBOTriangle;
 
     GLuint m_FBOSM;
-
 
     GLint uLightDir_vsLoc = -1;
     GLint uLightIntensityLoc = -1;

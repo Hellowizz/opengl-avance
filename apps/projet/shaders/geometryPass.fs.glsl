@@ -39,7 +39,7 @@ void main() {
 
 	//fFragColor = blinnPhong(diffuse, specular) + ambiant;	
 
-	fNormal = normalize(vViewSpaceNormal);
+        fNormal = normalize(vViewSpaceNormal);
 	fPosition = vViewSpacePosition;
 	fAmbient = ambiant;
 	fDiffuse = diffuse;
