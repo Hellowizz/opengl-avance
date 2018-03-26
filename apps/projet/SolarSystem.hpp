@@ -17,6 +17,8 @@ struct Planet
     float speedOrbit;
     float speedRotation;
     float radius;
+    bool asteroide;
+    float offsetOrbitAngle;
 
     // these values are changing
     glm::vec3 worldPosition;
@@ -39,7 +41,7 @@ struct Planet
         transform = glm::rotate(transform, orbitAxisOrientation.z, glm::vec3(1, 0, 0));
         up = glm::rotate(up, orbitAxisOrientation.z, glm::vec3(1, 0, 0));
         // final transformation matrix for the (1, 0, 0) vector
-        transform = glm::rotate(transform, orbitAngle, up);
+        transform = glm::rotate(transform, offsetOrbitAngle + orbitAngle, up);
         // final position of the planet
         worldPosition = parent->worldPosition + glm::vec3(transform * glm::vec4(distToParent, 0, 0, 1));
     }
@@ -62,10 +64,11 @@ struct Planet
 
     Planet(Planet * _parent, float _distToParent,
            glm::vec3 _orbitAxisOrientation, glm::vec3 _rotationAxisOrientation,
-           float _speedOrbit, float _speedRotation, float _radius)
+           float _speedOrbit, float _speedRotation, float _radius, bool _asteroide=false)
         : parent(_parent), distToParent(_distToParent), orbitAxisOrientation(_orbitAxisOrientation),
           rotationAxisOrientation(_rotationAxisOrientation), speedOrbit(_speedOrbit), speedRotation(_speedRotation),
-          worldPosition(glm::vec3(0)), orbitAngle(0), rotationAngle(0), radius(_radius)
+          worldPosition(glm::vec3(0)), orbitAngle(0), rotationAngle(0), radius(_radius), asteroide(_asteroide),
+          offsetOrbitAngle(0)
     {
     }
 };
@@ -82,8 +85,9 @@ struct SolarSystem
         }
     }
 
-#define MAX_CHILDREN_NUMBER 5
+#define MAX_CHILDREN_NUMBER 4
 #define MIN_CHILDREN_NUMBER 2
+#define NB_ASTEROIDS_IN_RING 200
 
     // Fills the system with planets in a procedural way
     void generate()
@@ -106,6 +110,25 @@ private:
                     );
     }
 
+    void addAsteroidRing(Planet * planet) {
+        auto orbitAxis = randomEulerZYX(glm::vec3(0.3, 0.3, 0.3));
+        float ringThickness = planet->radius * 0.2;
+
+        for(int i = 0; i < NB_ASTEROIDS_IN_RING; ++i) {
+            Planet * ast = new Planet(planet,
+                                      1.5 * planet->radius + (ringThickness * rand() / float(RAND_MAX)),
+                                      orbitAxis, glm::vec3(0, 0, 0),
+                                      0.1, 0, 0.02 * planet->radius,
+                                      true
+                                      );
+            // set offset orbit angle
+            ast->offsetOrbitAngle = 360 * (rand() / float(RAND_MAX));
+
+            planets.push_back(ast);
+            planet->children.push_back(ast);
+        }
+    }
+
     void recursiveAddChildren(Planet * planet, uint depth, uint depth_inverse)
     {
         // TODO more sophisticated
@@ -119,11 +142,15 @@ private:
                                         d,
                                         randomEulerZYX(glm::vec3(0.3, 0.3, 0.3)),
                                         randomEulerZYX(glm::vec3(1.57, 1.57, 1.57)),
-                                        (1. / d) * (0.5 + rand() / (float)RAND_MAX), 1., 0.03 + 0.03 / ((float)depth_inverse + 1)
+                                        d * (0.1 + rand() / (float)RAND_MAX), 0.1, 0.02 + 0.03 / ((float)depth_inverse + 1)
                                         );
             planets.push_back(child);
             planet->children.push_back(child);
             recursiveAddChildren(child, depth - 1, depth_inverse + 1);
+        }
+        if(rand() / float(RAND_MAX) > 0.8) // proba faible
+        {
+            addAsteroidRing(planet);
         }
     }
 

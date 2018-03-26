@@ -7,6 +7,7 @@
 #include <glmlv/imgui_impl_glfw_gl3.hpp>
 #include <glmlv/simple_geometry.hpp>
 #include <glmlv/Image2DRGBA.hpp>
+#include <glmlv/GlobalWavPlayer.hpp>
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -18,7 +19,7 @@ int Application::run()
     glm::vec3 lightDir(1, 1, 1);
     lightDir = glm::normalize(lightDir);
 
-    glm::vec3 lightColor(1, 1, 1);
+    glm::vec3 lightColor(3, 3, 3);
 
     float alphaLight;
     float thetaLight;
@@ -29,10 +30,25 @@ int Application::run()
         const auto seconds = glfwGetTime();
         
         // vitesse de la camera
-        float m_sceneSize = 10.0f; //glm::length(m_pla.bboxMax - m_crytekSponzaObj.bboxMin);
+        float m_sceneSize = 30.0f;
         m_viewController.setSpeed(m_sceneSize * 0.1f);
-        glm::mat4 ProjMatrix = glm::perspective(70.f, m_nWindowWidth/float(m_nWindowHeight), 0.01f * m_sceneSize, m_sceneSize); // near = 1% de la taille de la scene, far = 100%
-        glm::mat4 ViewMatrix = m_viewController.getViewMatrix();
+        glm::mat4 ProjMatrix = glm::perspective(70.f, m_nWindowWidth/float(m_nWindowHeight), 0.001f * m_sceneSize, m_sceneSize);
+        //glm::mat4 ViewMatrix = m_viewController.getViewMatrix();
+        
+        // update solar system
+        // m_cSolarSystem.update(time);
+        m_cSolarSystem.update(seconds);
+        for(int i = 0; i < m_planetInstances.size(); ++i) {
+            m_planetInstances[i].setModelMatrix(m_cSolarSystem.planets[i]->getWorldMatrix());
+        }
+
+        if(m_camera.isTimeToChange(seconds))
+        {
+                m_camera.stareNewRandomPlanet(&m_cSolarSystem);
+                m_camera.toggleState(!m_camera.planetFocus);
+        }
+        m_camera.updatePosition(seconds);
+        glm::mat4 ViewMatrix = m_camera.viewMatrix;
 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_FBO); // Set FBO as draw framebuffer
 
@@ -120,6 +136,9 @@ int Application::run()
                     break;
             }
             ImGui::SliderFloat("time", &time, 0, 10);
+
+            ImGui::SliderFloat3("distToPlanet", glm::value_ptr(m_camera.distToPlanet), -1, 1);
+
             ImGui::End();
         }
 #if 0
@@ -143,13 +162,6 @@ int Application::run()
         auto guiHasFocus = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
         if (!guiHasFocus) {
             m_viewController.update(float(ellapsedTime));
-        }
-
-        // update solar system
-        // m_cSolarSystem.update(time);
-        m_cSolarSystem.update(glfwGetTime());
-        for(int i = 0; i < m_planetInstances.size(); ++i) {
-            m_planetInstances[i].setModelMatrix(m_cSolarSystem.planets[i]->getWorldMatrix());
         }
     }
 
@@ -190,11 +202,13 @@ Application::Application(int argc, char** argv):
 
     // DECLARATION OF ALL THE .OBJ
     std::vector< glmlv::fs::path > modelPaths = {
+        m_AssetsRootPath / "projet" / "soleil" / "planeterouge.obj",
         m_AssetsRootPath / "projet" / "planet_rouge" / "planeterouge.obj",
         m_AssetsRootPath / "projet" / "planet_2" / "planeterouge.obj",
         m_AssetsRootPath / "projet" / "planet_3" / "planeterouge.obj",
         m_AssetsRootPath / "projet" / "planet_4" / "planeterouge.obj",
         m_AssetsRootPath / "projet" / "planet_5" / "planeterouge.obj",
+        m_AssetsRootPath / "projet" / "asteroide" / "planeterouge.obj"
     };
 
     for(auto & path : modelPaths) {
@@ -202,15 +216,26 @@ Application::Application(int argc, char** argv):
         modelObj->load(path);
         m_planetModels.push_back(modelObj);
     }
+
     m_cSolarSystem.generate();
     for(int i = 0; i < m_cSolarSystem.planets.size(); ++i) {
         ModelInstance modelInstance;
-        modelInstance.setModel(m_planetModels[rand() % m_planetModels.size()]);
+        int indexObj;
+        if(i==0)
+            indexObj = 0;
+        else
+            indexObj = m_cSolarSystem.planets[i]->asteroide ?
+                    m_planetModels.size() - 1: 1 + rand() % (m_planetModels.size() - 2);
+        modelInstance.setModel(m_planetModels[indexObj]);
         m_planetInstances.push_back(modelInstance);
     }
 
-    // TODO remplir les instances et les linker aux planetes, puis faire la boucle d'affichage :)
-    // bounuit
+    // MUSIQUE
+
+    glmlv::GlobalWavPlayer::playWav(m_AssetsRootPath / "projet" / "music" / "musique.wav");
+
+    // CAMERA
+    m_camera.setCamera(glm::vec3(0.009,0.1,-0.06), glm::vec3(0.8, 2, 1.3), m_cSolarSystem.planets[0]);
 
     // Here we load and compile shaders from the library
     m_programGBuffer = glmlv::compileProgram({ m_ShadersRootPath / m_AppName / "geometryPass.vs.glsl", m_ShadersRootPath / m_AppName / "geometryPass.fs.glsl" });

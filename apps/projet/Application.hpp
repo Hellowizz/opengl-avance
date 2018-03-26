@@ -169,6 +169,94 @@ struct ModelInstance
     }
 };
 
+struct Camera
+{
+    Planet * currentPlanet;
+    Planet * sun;
+    glm::vec3 distToPlanet;
+    glm::vec3 distToSun;
+    glm::vec3 upVector;
+    glm::mat4 viewMatrix;
+    glm::vec3 posPrec;
+    glm::vec3 targetPrec;
+    glm::vec3 pos;
+    glm::vec3 target;
+    bool planetFocus;
+    float timeToChange; // time
+    float lastChange; // time
+
+
+    void setCamera(glm::vec3 _distToPlanet, glm::vec3 _distToSun, Planet * _sun){
+        currentPlanet = NULL;
+        sun = _sun;
+        distToPlanet = _distToPlanet;
+        distToSun = _distToSun;
+        upVector = glm::vec3(0,1,0);
+        viewMatrix = glm::mat4(1);
+        planetFocus = false;
+        timeToChange = 10;
+        lastChange = 0;
+    }
+
+    bool isTimeToChange(float time)
+    {
+        if(time - lastChange > timeToChange)
+        {
+            lastChange = time;
+            return true;
+        }else
+            return false;
+    }
+
+    float mapped_t(float t) {
+        t *= 2;
+        if(t < 0.25) {
+            t = 3*t;
+        } else {
+            t = (0.25 / 0.75) * t + 2./3.;
+        }
+        if(t > 1.) t = 1.;
+        return t;
+    }
+
+    void updatePosition(float time)
+    {
+        float t = (time - lastChange) / timeToChange;
+        if(planetFocus){
+            t = mapped_t(t);
+            pos = distToPlanet + currentPlanet->worldPosition;
+            target = currentPlanet->worldPosition;
+            viewMatrix = glm::lookAt((1-t) * posPrec + t * pos, (1-t)*targetPrec + t*target, upVector);
+        }
+        else
+        {
+            pos = sun->worldPosition + distToSun;
+            target = sun->worldPosition;
+            viewMatrix = glm::lookAt((1-t*t) * posPrec + t*t * pos, (1-t)*targetPrec + t*target, upVector);
+        }
+    }
+
+    void toggleState(bool _planetFocus)
+    {
+        planetFocus = _planetFocus;
+        posPrec = pos;
+        targetPrec = target;
+    }
+
+    // permet de changer la planète que la camera fixe aléatoirement
+    void stareNewRandomPlanet(SolarSystem * solarSys)
+    {
+        int index = rand() % solarSys->planets.size();
+        Planet * randomPlanet = solarSys->planets[rand() % solarSys->planets.size()];
+        while(solarSys->planets[index]->asteroide) {
+            index = rand() % solarSys->planets.size();
+            randomPlanet = solarSys->planets[index];
+        }
+        currentPlanet = randomPlanet;
+    }
+
+};
+
 class Application
 {
 public:
@@ -206,6 +294,8 @@ private:
     SolarSystem m_cSolarSystem;
     std::vector<ModelObj*> m_planetModels;
     std::vector<ModelInstance> m_planetInstances;
+
+    Camera m_camera;
 
     // relative to rendering
 
